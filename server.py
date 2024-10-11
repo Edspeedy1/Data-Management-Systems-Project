@@ -4,9 +4,9 @@ PORT = 8042
 
 class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
+        if self.path == '/' or self.path == '/home':
+            self.path = '/index.html'
         self.path = "/dist" + self.path
-        if self.path == '/dist/':
-            self.path = '/dist/index.html'
         print(self.path)
         return super().do_GET()
     
