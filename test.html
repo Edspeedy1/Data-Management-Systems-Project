@@ -1,0 +1,56 @@
+<Doctype html>
+    <!-- basic html page -->
+    <html>
+
+    <head>
+        <title>Test</title>
+        <!-- <style>
+            /* Apply background */
+            body {
+              background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><polygon points="30,0 60,60 0,60" fill="%23ff6347"/><polygon points="30,0 0,60 60,60" fill="%23ffeb3b" opacity="0.8"/></svg>');
+              background-size: 60px 60px;
+            }
+          </style> -->
+
+    </head>
+
+    <body>
+        <h1>Test</h1>
+        <canvas id="triangleGrid" width="600" height="600"></canvas>
+        <script>
+            const canvas = document.getElementById('triangleGrid');
+            const ctx = canvas.getContext('2d');
+            // Adjust canvas size to fill the screen canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+            // Set triangle size 
+            const triangleSize = 60;
+
+            function drawTriangle(x, y, color, flip) { 
+                ctx.beginPath(); 
+                if (flip) { 
+                    ctx.moveTo(x, y); 
+                    ctx.lineTo(x + triangleSize, y); 
+                    ctx.lineTo(x + triangleSize / 2, y + triangleSize); 
+                } else { 
+                    ctx.moveTo(x + triangleSize / 2, y); 
+                    ctx.lineTo(x, y + triangleSize); 
+                    ctx.lineTo(x + triangleSize, y + triangleSize); 
+                } 
+                ctx.closePath(); 
+                ctx.fillStyle = color; 
+                ctx.fill(); 
+            }
+
+            // Loop to fill canvas with triangles 
+            for (let y = -triangleSize; y < canvas.height; y += triangleSize) { 
+                for (let x = -triangleSize; x < canvas.width; x += triangleSize/2) { 
+                    const flip = (2*x / triangleSize + y / triangleSize) % 2 === 0; 
+                    drawTriangle(x, y, flip ? '#ff6347' : '#ffeb3b', flip); 
+                } 
+            }
+            
+        </script>
+    </body>
+
+    </html>
