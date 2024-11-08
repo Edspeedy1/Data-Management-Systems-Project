@@ -24,6 +24,16 @@ export const LoginInputs: React.FC = () => {
         setPassword(e.target.value);
     };
 
+    function handleSubmit() {
+        fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }).then(
+        response => response.json()).then(
+            data => {
+                if (data.success) {
+                    console.log("redirecting...");
+                    window.location.href = '/home';
+                }
+    })};
+
     return (
         <div className="h-[30vh] lg:w-[20vw] flex flex-col justify-center items-center">
         <input
@@ -41,16 +51,15 @@ export const LoginInputs: React.FC = () => {
             placeholder="password"
             onChange={handlePasswordChange}
             className="p-2 border-2 border-black mt-4 mb-4"
+            onKeyDown={(e) => {
+                console.log(e.key);
+                if (e.key === 'Enter') {
+                    handleSubmit();
+                }
+            }}
         />
         <button className={` ${isActive ? "p-2 border-2 border-black mt-4 mb-4 bg-dark text-white" : "p-2 border-2 border-dark mt-4 mb-4 bg-light text-black"}`}
-            onClick={() => fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }).then(
-                response => response.json()).then(
-                    data => {
-                        console.log(data)
-                        if (data.success) {
-                            // do something
-                        }
-                    })} 
+            onClick={handleSubmit}
             disabled={!isActive} 
         >Submit</button>
         </div>

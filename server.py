@@ -51,7 +51,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if c.strip().startswith(SESS_COOKIE_NAME) and c.strip().split('=')[1] in sessions:
                     session = c.strip().split('=')[1]
                     username = sessions[session].username
-                    sessions[session].lastActiveTime = time.time()
+                    sessions[session].update_last_active_time()
                     break
 
         if self.path == '/login':
