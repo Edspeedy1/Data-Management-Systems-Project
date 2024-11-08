@@ -9,6 +9,7 @@ import os
 PORT = 8042
 SESS_COOKIE_NAME = "project-forge-session-id"
 
+
 class ConnectedClient:
     def __init__(self, username, sessionID):
         self.username = username

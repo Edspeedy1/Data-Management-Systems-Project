@@ -10,7 +10,8 @@ def create_tables():
 def clear_tables():
     # empty the tables but don't delete them
     c.execute("DELETE FROM loginInfo")
-
+    
+clear_tables()
 
 conn.commit()
 conn.close()

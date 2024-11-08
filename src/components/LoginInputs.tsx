@@ -25,6 +25,9 @@ export const LoginInputs: React.FC = () => {
     };
 
     function handleSubmit() {
+        if (!username || !password) {
+            return;
+        }
         fetch('/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) }).then(
         response => response.json()).then(
             data => {

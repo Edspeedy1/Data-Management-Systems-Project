@@ -6,7 +6,7 @@ import { BackdropTriangles } from "../components/BackdropTriangles";
 
 const Login: React.FC = () => {
 	return (
-		<div className="bg-primary w-[100vw] h-[100vh] flex flex-col items-center p-12">
+		<div className="bg-primary w-[100vw] h-[100vh] flex flex-col items-center p-12 overflow-hidden">
 			<BackdropTriangles />
 			<div style={{ zIndex: 1 }}>
 				<ContentBox bgColor="secondary" hasBorder>
