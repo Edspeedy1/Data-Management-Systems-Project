@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-export const MouseBubble: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+export const MouseBubble: React.FC<React.PropsWithChildren<{
+    blur?: string;
+}>> = ({ children, blur }) => {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    if (!blur) {
+        blur = "lg";
+    }
 
     // Track mouse movement
     useEffect(() => {
@@ -23,11 +28,23 @@ export const MouseBubble: React.FC<React.PropsWithChildren<{}>> = ({ children })
         };
     }, []);
 
+    // Define blur level classes
+    const blurClassMap: Record<string, string> = {
+        sm: "backdrop-blur-sm",
+        almostMedium: "backdrop-blur-almostMedium",
+        md: "backdrop-blur-md",
+        lg: "backdrop-blur-lg",
+        xl: "backdrop-blur-xl",
+    };
+
+    // Default to `backdrop-blur-lg` if blur level is not in map
+    const blurClassName = `fixed inset-0 ${blurClassMap[blur] || "backdrop-blur-lg"} w-[100vw] h-[100vh] top-0 left-0`;
+
     return (
         <div className="relative">
             {/* Background effect */}
             <div
-                className="fixed inset-0 backdrop-blur-lg w-[100vw] h-[100vh] top-0 left-0"
+                className={blurClassName}
                 style={{
                     maskImage: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, transparent 180px, black 350px)`,
                     WebkitMaskImage: `radial-gradient(circle at ${mousePosition.x}px ${mousePosition.y}px, transparent 180px, black 350px)`,

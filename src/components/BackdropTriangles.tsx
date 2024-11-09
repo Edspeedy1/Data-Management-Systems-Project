@@ -9,7 +9,7 @@ export const BackdropTriangles: React.FC = () => {
     const color1 = "#8c3800";
     const color2 = "#773100";
 
-    // Function to interpolate between two colors
+    // Function to interpolate between two colors, no ideo how this works
     const interpolateColor = (color1: string, color2: string, factor: number) => {
         const c1 = parseInt(color1.slice(1), 16);
         const c2 = parseInt(color2.slice(1), 16);

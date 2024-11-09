@@ -6,6 +6,9 @@ export default {
   ],
   theme: {
     extend: {
+      backdropBlur: {
+        almostMedium: "5px",
+      },
       colors: {
         primary: "#8c3800",
         secondary: "#ff7f27",
