@@ -100,5 +100,9 @@ export const BackdropTriangles: React.FC = () => {
         };
     }, [triangleSize, height, color1, color2]);
 
-    return <canvas ref={canvasRef} width="600" height="600" style={{position: 'absolute', top: 0, left: 0, zIndex: 1}} className="hidden sm:block"></canvas>;
+    return (
+        <div className="absolute top-0 left-0 bg-[url('../content/triangleBG.png')] bg-cover bg-center h-screen w-screen">
+            <canvas ref={canvasRef} width="600" height="600" style={{position: 'absolute', top: 0, left: 0, zIndex: 1}} className="hidden sm:block"></canvas>
+        </div>
+    );
 };

@@ -35,9 +35,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/' or self.path == '/home':
             self.path = '/index.html'
-        if self.path == '/favicon.ico':
-            return super().do_GET()
-        self.path = "/dist" + self.path
+        if self.path.endswith('.js') or self.path.endswith('.css') or self.path.endswith('.html'):
+            self.path = "/dist" + self.path
         print(self.path)
         return super().do_GET()
     

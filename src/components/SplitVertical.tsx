@@ -7,7 +7,7 @@ type SplitProps = {
 
 export const SplitVertical: React.FC<SplitProps> = ({ left, right }) => {
     return (
-        <div className="flex flex-row w-full h-full gap-16">
+        <div className="flex flex-col sm:flex-row w-full h-full gap-16">
             {left}
             {right}
         </div>

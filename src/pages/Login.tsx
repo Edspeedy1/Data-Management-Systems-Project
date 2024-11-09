@@ -1,4 +1,6 @@
 import React from "react";
+import { Header } from "../components/Header";
+import { Spacer } from "../components/Spacer";
 import { ContentBox } from "../components/ContentBox";
 import { MouseBubble } from "../components/MouseBubble";
 import { LoginInputs } from "../components/LoginInputs";
@@ -9,9 +11,11 @@ const Login: React.FC = () => {
 		<div className="bg-primary w-[100vw] h-[100vh] flex flex-col items-center p-12 overflow-hidden">
 			<BackdropTriangles />
 			<div style={{ zIndex: 1 }}>
+				<Spacer space={60} />
 				<ContentBox bgColor="secondary" hasBorder>
 					<div className="h-[70vh] w-[60vw] flex justify-center">
 						<MouseBubble>
+							<Header hasSearch={false} />
 							<div className="mt-20">
 								<ContentBox bgColor="light" hasBorder>
 									<div className="text-center w-[60vw] lg:h-[300px] lg:w-[20vw]">

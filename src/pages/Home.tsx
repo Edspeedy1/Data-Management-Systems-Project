@@ -1,8 +1,11 @@
 import React from 'react';
+import { Header } from '../components/Header';
 import { BackdropTriangles } from '../components/BackdropTriangles';
 import { ContentBox } from '../components/ContentBox';
 import { SplitVertical } from '../components/SplitVertical';
 import { MouseBubble } from '../components/MouseBubble';
+import { Spacer } from '../components/Spacer';
+
 
 const Home: React.FC = () => {
 	return (
@@ -10,6 +13,8 @@ const Home: React.FC = () => {
 			<BackdropTriangles />
 			<div style={{ zIndex: 1 }}>
 				<MouseBubble blur="almostMedium">
+					<Header hasSearch/>
+					<Spacer space={40}/>
 					<SplitVertical
 						left={
 							<ContentBox bgColor="dark" hasBorder>
