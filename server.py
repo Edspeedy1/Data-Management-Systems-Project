@@ -25,7 +25,7 @@ class ConnectedClient:
         self.lastActiveTime = time.time()
 
 sessions = {}
-DB_CONN = sqlite3.connect("database.db")
+DB_CONN = sqlite3.connect("mydatabase.db")
 
 class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
