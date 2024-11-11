@@ -35,8 +35,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/' or self.path == '/home':
             self.path = '/index.html'
-        if self.path.endswith('.js') or self.path.endswith('.css') or self.path.endswith('.html'):
-            self.path = "/dist" + self.path
+        if self.path == '/favicon.ico':
+            return super().do_GET()
+        self.path = "/dist" + self.path
         print(self.path)
         return super().do_GET()
     
@@ -117,5 +118,5 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 with http.server.HTTPServer(("", PORT), customRequestHandler) as httpd:
     print("serving at port", PORT)
-    print("http://localhost:" + str(PORT))
+    print("http://127.0.0.1:" + str(PORT))
     httpd.serve_forever()
