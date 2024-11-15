@@ -1,21 +1,18 @@
 import http.server
-import bcrypt
-import random
 import sqlite3
-import time
 import json
-import os
+import time
+import bcrypt
 
-PORT = 8042
-SESS_COOKIE_NAME = "project-forge-session-id"
+SESS_COOKIE_NAME = 'sessionID'
 
-
+# ConnectedClient Class
 class ConnectedClient:
     def __init__(self, username, sessionID):
         self.username = username
         self.sessionID = sessionID
         self.lastActiveTime = time.time()
-    
+
     def __str__(self):
         return f"username: {self.username}, sessionID: {self.sessionID}, lastActiveTime: {self.lastActiveTime}"
     def __repr__(self):
@@ -24,99 +21,87 @@ class ConnectedClient:
     def update_last_active_time(self):
         self.lastActiveTime = time.time()
 
+# Global session and database connection
 sessions = {}
 DB_CONN = sqlite3.connect("mydatabase.db")
 
+# Request Handler Class
 class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         self.DB_CONN = DB_CONN
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
+        """Handle GET requests."""
         if self.path == '/' or self.path == '/home':
             self.path = '/index.html'
-        if self.path == '/favicon.ico':
-            return super().do_GET()
-        self.path = "/dist" + self.path
-        print(self.path)
-        return super().do_GET()
-    
+            super().do_GET()
+        elif self.path == '/repos':  # Endpoint to fetch all repositories
+            self.get_repositories()
+        elif self.path == '/test_db_connection':  # Test database connection
+            self.test_database_connection()
+        else:
+            super().do_GET()
+            print(f"Received GET request for path: {self.path}")
+
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        cookie_header = self.headers.get('Cookie')
+        """Handle POST requests."""
+        if self.path == '/create_repo':  # Endpoint to create a repository
+            self.create_repository()
+        else:
+            super().do_POST()
 
-        if cookie_header:
-            cookie = cookie_header.split(';')
-            for c in cookie:
-                if c.strip().startswith(SESS_COOKIE_NAME) and c.strip().split('=')[1] in sessions:
-                    session = c.strip().split('=')[1]
-                    username = sessions[session].username
-                    sessions[session].update_last_active_time()
-                    break
-
-        if self.path == '/login':
-            data = json.loads(post_data)
-            self.login(data['username'], data['password'])
-
-    def login(self, username, password):
-        print(username, password)
-
-        hashedPassword = bcrypt.hashpw((password).encode('utf-8'), bcrypt.gensalt())
-        # Check if username already exists
-        cursor = self.DB_CONN.cursor()
-        try:
-            cursor.execute('SELECT * FROM loginInfo WHERE username = ?', (username,))
-            usernamePass = cursor.fetchone()
-
-            print(usernamePass)
-            if usernamePass is not None:
-                # check if password is correct
-                if not bcrypt.checkpw(password.encode('utf-8'), usernamePass[2]): 
-                    self.send_json_response(400, {'error': 'Incorrect password'})
-                    return 
-                else: # login successful
-                    sessionID = random.randbytes(32).hex()
-                    sessions[str(sessionID)] = ConnectedClient(username, sessionID)
-                    self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
-                    return 
-            else: # new account creation
-                print("making new account")
-                cursor.execute('INSERT INTO loginInfo (username, password) VALUES (?, ?)', (username, hashedPassword))
-                self.DB_CONN.commit()
-                # initialize anything needed for a new account
-
-                # create a new session
-                sessionID = random.randbytes(32).hex()
-                sessions[str(sessionID)] = ConnectedClient(username, sessionID)
-                self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
-        finally:
-            cursor.close()
-
-    def send_json_response(self, status_code, data, extra_headers=None):
-        self.send_response(status_code)
-        if extra_headers:
-            for k, v in extra_headers.items():
-                self.send_header(k, v)
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
-
-    def send_SQL_query(self, query, params, get=False, fetchAll=True):
+    
+    def test_database_connection(self):
+        """Test the connection to the SQLite database."""
         try:
             cursor = self.DB_CONN.cursor()
-            cursor.execute(query, params)
-            if get:
-                if fetchAll:
-                    return cursor.fetchall()
-                else:
-                    return cursor.fetchone()
-        finally:
-            if not get:
-                self.DB_CONN.commit()
-            cursor.close()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = cursor.fetchall()
+            # Send the list of tables as a response
+            self.respond_with_json({"tables": [table[0] for table in tables]})
+        except Exception as e:
+            self.respond_with_json({"error": str(e)}, status_code=500)
 
-with http.server.HTTPServer(("", PORT), customRequestHandler) as httpd:
-    print("serving at port", PORT)
+    def get_repositories(self):
+        """Fetch all repositories from the database."""
+        try:
+            cursor = self.DB_CONN.cursor()
+            cursor.execute("SELECT RepoID, RepoName FROM Repository")
+            repos = [{"RepoID": row[0], "RepoName": row[1]} for row in cursor.fetchall()]
+            self.respond_with_json(repos)
+        except Exception as e:
+            self.respond_with_json({"error": str(e)}, status_code=500)
+
+    def create_repository(self):
+        """Create a new repository."""
+        content_length = int(self.headers["Content-Length"])
+        post_data = json.loads(self.rfile.read(content_length))
+        try:
+            cursor = self.DB_CONN.cursor()
+            cursor.execute(
+                "INSERT INTO Repository (RepoID, DateCreated, RepoName, collabLeader, IsPublic) "
+                "VALUES (?, datetime('now'), ?, ?, ?)",
+                (post_data["RepoID"], post_data["RepoName"], post_data["collabLeader"], post_data["IsPublic"])
+            )
+            self.DB_CONN.commit()
+            self.respond_with_json({"message": "Repository created successfully"})
+        except Exception as e:
+            self.respond_with_json({"error": str(e)}, status_code=500)
+
+ 
+ 
+    def respond_with_json(self, data, status_code=200):
+        """Helper method to send JSON responses."""
+        self.send_response(status_code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode("utf-8"))
+
+
+if __name__ == '__main__':
+    PORT = 8042
+    server = http.server.HTTPServer(('localhost', PORT), customRequestHandler)
+    print(f"Server running on port {PORT}")
     print("http://127.0.0.1:" + str(PORT))
-    httpd.serve_forever()
+    server.serve_forever() 
