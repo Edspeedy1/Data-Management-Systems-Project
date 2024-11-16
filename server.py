@@ -62,26 +62,41 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def login(self, username, password):
         print(username, password)
 
-        hashedPassword = bcrypt.hashpw((password).encode('utf-8'), bcrypt.gensalt())
+        username=username.strip()
+
+        #     hashedPassword = bcrypt.hashpw((password).encode('utf-8'), bcrypt.gensalt()), removing this line because there is no need to hash
+        #the password at the beginning of the login function, since it will be random everytime all it needs to do is compare to 
+        #an already existing file in the database, which means it doesn't need to be hashed AGAIN (learned the hard way).
+
         # Check if username already exists
         cursor = self.DB_CONN.cursor()
         try:
-            cursor.execute('SELECT * FROM securityInfo WHERE UserName = ?', (username,))
+            print(f"Executing query: SELECT * FROM securityInfo WHERE UserName = ? with parameter: {username}")
+            cursor.execute('SELECT * FROM securityInfo WHERE UserName = ? COLLATE NOCASE', (username,))
             usernamePass = cursor.fetchone()
+            print(f"Query result: {usernamePass}")
 
-            print(usernamePass)
+            print(usernamePass) 
             if usernamePass is not None:
+                stored_hashed_password = usernamePass[1]
                 # check if password is correct
-                if not bcrypt.checkpw(password.encode('utf-8'), usernamePass[2]): 
+                if not bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password): 
                     self.send_json_response(400, {'error': 'Incorrect password'})
                     return 
                 else: # login successful
+                
                     sessionID = random.randbytes(32).hex()
                     sessions[str(sessionID)] = ConnectedClient(username, sessionID)
                     self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
                     return 
+
+
+
             else: # new account creation
                 print("making new account")
+                #hashing for NEW account creation
+                hashedPassword = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
                 cursor.execute('INSERT INTO securityInfo (UserName, passw) VALUES (?, ?)', (username, hashedPassword))
                 self.DB_CONN.commit()
                 # initialize anything needed for a new account
