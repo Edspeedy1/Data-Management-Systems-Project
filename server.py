@@ -58,7 +58,24 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/login':
             data = json.loads(post_data)
             self.login(data['username'], data['password'])
-
+        if self.path == '/addCollab':
+            data = json.loads(post_data)
+            change=False
+            self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)
+        if self.path == '/editCollab':
+            data = json.loads(post_data)
+            change=True
+            self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
+            
+    def addCollab(self,username,RepoID,accessLevel,change):   
+        #accessLevel 0 is viewer and 1 is editor
+        query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
+        lastActive=self.send_SQL_query(query,username)
+        if change:
+            query = 'UPDATE INTO Collaborator (UserName, RepoID,LastLogin,accessLevel) VALUES (?, ?, ?, ?)'
+        else:
+            query = 'INSERT INTO Collaborator (UserName, RepoID,LastLogin,accessLevel) VALUES (?, ?, ?, ?)'
+        self.send_SQL_query(query,(username,RepoID,lastActive,accessLevel))
     def login(self, username, password):
         username = username.strip()
 
