@@ -74,7 +74,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if change:
             query = 'UPDATE INTO Collaborator (UserName, RepoID,LastLogin,accessLevel) VALUES (?, ?, ?, ?)'
         else:
-            print('hit')
             query = 'INSERT INTO Collaborator (UserName, RepoID,LastLogin,accessLevel) VALUES (?, ?, ?, ?)'
         self.send_SQL_query(query,(username,RepoID,lastActive,accessLevel))
         self.send_json_response(200, {'success': True})
