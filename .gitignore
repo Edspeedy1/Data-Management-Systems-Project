@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 .venv
+.venv/
 dist-ssr
 *.local
 test.html
