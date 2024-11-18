@@ -11,7 +11,7 @@ def clear_table(table):
     # empty the table but don't delete them
     c.execute("DELETE FROM " + table)
 
-clear_table("SecurityInfo")
+clear_table("Collaborator")
 
 conn.commit()
 conn.close()
