@@ -1,6 +1,6 @@
 import sqlite3
 
-conn = sqlite3.connect('mydatabase.db')
+conn = sqlite3.connect('database.db')
 c = conn.cursor()
 
 def create_tables():
@@ -11,7 +11,16 @@ def clear_table(table):
     # empty the table but don't delete them
     c.execute("DELETE FROM " + table)
 
-clear_table("Collaborator")
+def clear_All():
+    # get all the tables
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    tables = c.fetchall()
+    for table in tables:
+        print("Clearing table " + table[0])
+        clear_table(table[0])
+
+
+clear_All()
 
 conn.commit()
 conn.close()
