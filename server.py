@@ -77,14 +77,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         lastActive = self.send_SQL_query(query, (username,))
         if change:
             query = "UPDATE Collaborator SET UserName = ?, RepoID = ?, LastLogin = ?, accessLevel = ? WHERE username=?"
-            params = (username,RepoID,lastActive,accessLevel,username)
+            params = (username, RepoID, lastActive, accessLevel, username)
         else:
             check_query = "SELECT COUNT(*) FROM Collaborator WHERE UserName = ? AND RepoID = ?"
             exists = self.send_SQL_query(check_query, (username, RepoID), True)
             print(exists)
             if (exists[0][0] == 0):
-                query = 'INSERT INTO Collaborator (UserName, RepoID,LastLogin,accessLevel) VALUES (?, ?, ?, ?)'
-                params = (username,RepoID,lastActive,accessLevel)
+                query = 'INSERT INTO Collaborator (UserName, RepoID, LastLogin, accessLevel) VALUES (?, ?, ?, ?)'
+                params = (username, RepoID, lastActive, accessLevel)
             else:
                 self.send_json_response(201, {'success': False})
                 return
