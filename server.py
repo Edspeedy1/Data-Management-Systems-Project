@@ -25,7 +25,7 @@ class ConnectedClient:
         self.lastActiveTime = time.time()
 
 sessions = {}
-DB_CONN = sqlite3.connect("mydatabase.db")
+DB_CONN = sqlite3.connect("database.db")
 
 class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -58,37 +58,37 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/login':
             data = json.loads(post_data)
             self.login(data['username'], data['password'])
+
         if self.path == '/addCollab':
-            # fetch command for this to work 
             # fetch('/addCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
             data = json.loads(post_data)
-            change=False
-            self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)
+            change = False
+            self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)
+
         if self.path == '/editCollab':
-            # fetch command for this to work 
             # fetch('/editCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
             data = json.loads(post_data)
-            change=True
-            self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
+            change = True
+            self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)   
             
-    def addCollab(self,username,RepoID,accessLevel,change):   
+    def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
-        lastActive=self.send_SQL_query(query,(username,))
+        lastActive = self.send_SQL_query(query, (username,))
         if change:
             query = "UPDATE Collaborator SET UserName = ?, RepoID = ?, LastLogin = ?, accessLevel = ? WHERE username=?"
-            para=(username,RepoID,lastActive,accessLevel,username)
+            params = (username,RepoID,lastActive,accessLevel,username)
         else:
             check_query = "SELECT COUNT(*) FROM Collaborator WHERE UserName = ? AND RepoID = ?"
-            exists = self.send_SQL_query(check_query, (username, RepoID),True)
+            exists = self.send_SQL_query(check_query, (username, RepoID), True)
             print(exists)
             if (exists[0][0] == 0):
                 query = 'INSERT INTO Collaborator (UserName, RepoID,LastLogin,accessLevel) VALUES (?, ?, ?, ?)'
-                para=(username,RepoID,lastActive,accessLevel)
+                params = (username,RepoID,lastActive,accessLevel)
             else:
                 self.send_json_response(201, {'success': False})
                 return
-        self.send_SQL_query(query,para)
+        self.send_SQL_query(query, params)
         self.send_json_response(200, {'success': True})
             
     def login(self, username, password):
