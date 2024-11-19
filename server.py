@@ -70,7 +70,20 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(post_data)
             change=True
             self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
-            
+        if self.path == '/getRepos':
+            data = json.loads(post_data)
+            return self.getRepo(data['username'],data['userLeader'])   
+                
+    def getRepo(self, username,userleader):
+        if userleader:
+            query = "SELECT RepoName FROM Repository WHERE CollabLeader = ?"
+        else:
+            query = "SELECT RepoName FROM Repository WHERE CollabLeader = ? and isPublic = True"
+        para=(username,)
+        results = self.send_SQL_query(query,para,True)
+        self.send_json_response(200, {'success': True})
+        return results
+
     def addCollab(self,username,RepoID,accessLevel,change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
