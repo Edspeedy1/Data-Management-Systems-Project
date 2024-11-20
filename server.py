@@ -58,19 +58,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                     break
 
         if self.path == '/createRepo':
-           if username:  # Ensure the user is authenticated
-                print (username)
-                data = json.loads(post_data)
-                repo_name = data.get('repoID', '').strip()
-                # collab_leader = data.get('collabLeader', '').strip()
-                collab_leader = username  # Use the authenticated username as CollabLeader
-
-                if not repo_name:
-                    self.send_json_response(400, {'error': 'Repository name is required'})
-                else:
-                    self.repoCreate(collab_leader, repo_name)
-           # else:
-                self.send_json_response(403, {'error': 'Unauthorized or missing session'})
+            data = json.loads(post_data)
+            self.login(username, data)
 
         if self.path == '/login':
             data = json.loads(post_data)
@@ -90,28 +79,41 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             
         if self.path == '/getRepos':
             data = json.loads(post_data)
-            return self.getRepo(data['username'],data['userLeader'])   
+            return self.getRepo(data['username'],username)   
         
         if self.path == '/searchBar':
             data = json.loads(post_data)
-            self.searchBar(data['word'])   
+            self.searchBar(data['word'])  
+             
+    def createRepo(self,username,data):
+        if username:  # Ensure the user is authenticated
+                print (username)
+                repo_name = data.get('repoID', '').strip()
+                # collab_leader = data.get('collabLeader', '').strip()
+                collab_leader = username  # Use the authenticated username as CollabLeader
+
+                if not repo_name:
+                    self.send_json_response(400, {'error': 'Repository name is required'})
+                else:
+                    self.repoCreate(collab_leader, repo_name)
+           # else:
+                self.send_json_response(403, {'error': 'Unauthorized or missing session'})
                 
-    def getRepo(self, username,userleader):
-        if userleader:
+                          
+    def getRepo(self, username, usernameHost):
+        if username.lower()==usernameHost.lower():
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ?"
         else:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ? and isPublic = True"
         para=(username,)
         results = self.send_SQL_query(query,para,True)
-        self.send_json_response(200, {'success': True})
-        return results
+        self.send_json_response(200, {'success': True,"repos":results})
     
     def searchBar(self,word):
         query = "SELECT RepoName FROM Repository WHERE RepoName LIKE = ?"
         para = (word+'%',)
         results = self.send_SQL_query(query,para,True)
-        self.send_json_response(200, {'success': True})
-        return results
+        self.send_json_response(200, {'success': True,"searchBar":results})
             
     def addCollab(self,username,RepoID,accessLevel,change):   
         # accessLevel 0 is viewer and 1 is editor
