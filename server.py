@@ -32,6 +32,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.DB_CONN = DB_CONN
         super().__init__(*args, **kwargs)
 
+
     def do_GET(self):
         if self.path == '/' or self.path == '/home':
             self.path = '/index.html'
@@ -41,6 +42,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         print(self.path)
         return super().do_GET()
     
+
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
@@ -54,6 +56,21 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                     username = sessions[session].username
                     sessions[session].update_last_active_time()
                     break
+
+        if self.path == '/createRepo':
+           if username:  # Ensure the user is authenticated
+                print (username)
+                data = json.loads(post_data)
+                repo_name = data.get('repoID', '').strip()
+                # collab_leader = data.get('collabLeader', '').strip()
+                collab_leader = username  # Use the authenticated username as CollabLeader
+
+                if not repo_name:
+                    self.send_json_response(400, {'error': 'Repository name is required'})
+                else:
+                    self.repoCreate(collab_leader, repo_name)
+           # else:
+                self.send_json_response(403, {'error': 'Unauthorized or missing session'})
 
         if self.path == '/login':
             data = json.loads(post_data)
@@ -105,7 +122,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             params = (username, RepoID, lastActive, accessLevel, username)
         else:
             check_query = "SELECT COUNT(*) FROM Collaborator WHERE UserName = ? AND RepoID = ?"
-            exists = self.send_SQL_query(check_query, (username, RepoID), True)
+            exists = self.send_SQL_query(check_query, (username, RepoID))
             print(exists)
             if (exists[0][0] == 0):
                 query = 'INSERT INTO Collaborator (UserName, RepoID, LastLogin, accessLevel) VALUES (?, ?, ?, ?)'
@@ -116,18 +133,17 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_SQL_query(query, params)
         self.send_json_response(200, {'success': True})
             
+
     def login(self, username, password):
         username = username.strip()
-
         # Check if username already exists
-        usernamePass = self.send_SQL_query('SELECT * FROM securityInfo WHERE UserName = ? COLLATE NOCASE', (username,), get=True, fetchAll=False)
+        usernamePass = self.send_SQL_query('SELECT UserName, passw FROM securityInfo WHERE UserName = ? COLLATE NOCASE', (username,))
 
-        print(usernamePass) 
-        if usernamePass is not None:
-            stored_hashed_password = usernamePass[1]
+        if usernamePass != []:
+            stored_hashed_password = usernamePass[0][1]
             # check if password is correct
             if not bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password): 
-                self.send_json_response(400, {'error': 'Incorrect password'})
+                self.send_json_response(401, {'error': 'Incorrect password'})
                 return 
             else: # login successful
                 sessionID = random.randbytes(32).hex()
@@ -148,6 +164,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             sessions[str(sessionID)] = ConnectedClient(username, sessionID)
             self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
 
+
     def send_json_response(self, status_code, data, extra_headers=None):
         self.send_response(status_code)
         if extra_headers:
@@ -157,17 +174,16 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
 
-    def send_SQL_query(self, query, params, get=False, fetchAll=True):
+
+    def send_SQL_query(self, query, params=()):
         try:
             cursor = self.DB_CONN.cursor()
             cursor.execute(query, params)
-            if get:
-                if fetchAll:
-                    return cursor.fetchall()
-                else:
-                    return cursor.fetchone()
+            return (results:=cursor.fetchall())
+        except Exception as e:
+            print(e)
         finally:
-            if not get:
+            if not results:
                 self.DB_CONN.commit()
             cursor.close()
 
