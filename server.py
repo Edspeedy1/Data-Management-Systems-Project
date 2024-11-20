@@ -74,6 +74,10 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/getRepos':
             data = json.loads(post_data)
             return self.getRepo(data['username'],data['userLeader'])   
+        
+        if self.path == '/searchBar':
+            data = json.loads(post_data)
+            self.searchBar(data['word'])   
                 
     def getRepo(self, username,userleader):
         if userleader:
@@ -84,7 +88,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         results = self.send_SQL_query(query,para,True)
         self.send_json_response(200, {'success': True})
         return results
-       
+    
+    def searchBar(self,word):
+        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE = ?"
+        para = (word+'%',)
+        results = self.send_SQL_query(query,para,True)
+        self.send_json_response(200, {'success': True})
+        return results
+            
     def addCollab(self,username,RepoID,accessLevel,change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
