@@ -55,6 +55,21 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                     sessions[session].update_last_active_time()
                     break
 
+        if self.path == '/createRepo':
+           if username:  # Ensure the user is authenticated
+                print (username)
+                data = json.loads(post_data)
+                repo_name = data.get('repoID', '').strip()
+                # collab_leader = data.get('collabLeader', '').strip()
+                collab_leader = username  # Use the authenticated username as CollabLeader
+
+                if not repo_name:
+                    self.send_json_response(400, {'error': 'Repository name is required'})
+                else:
+                    self.repoCreate(collab_leader, repo_name)
+           # else:
+                self.send_json_response(403, {'error': 'Unauthorized or missing session'})
+
         if self.path == '/login':
             data = json.loads(post_data)
             self.login(data['username'], data['password'])
@@ -70,7 +85,47 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(post_data)
             change = True
             self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)   
-            
+
+        
+    def repoCreate(self, collabLeader, RepoID):
+        DateCreated = time.time()
+        print(f"Collab Leader: {collabLeader}, RepoID: {RepoID}")
+
+        try:
+        # Check if the user which collabLeader uses, exists
+            user_query = "SELECT UserName FROM User WHERE UserName = ? COLLATE NOCASE"
+            userExists = self.send_SQL_query(user_query, (collabLeader,), get=True, fetchAll=False)
+            if not userExists:
+                print(f"Error: User '{collabLeader}' does not exist.")
+                self.send_json_response(205, {"error": "User does not exist"})
+                return
+
+        # Check if the RepoID already exists
+            repo_query = "SELECT COUNT(*) FROM Repository WHERE RepoID = ?"
+            repo_check = self.send_SQL_query(repo_query, (RepoID,), get=True, fetchAll=False)
+            if repo_check and repo_check[0] > 0:
+                print(f"Error: Repository ID '{RepoID}' already exists.")
+                self.send_json_response(409, {'error': 'Repository ID already exists'})
+                return
+
+        # If the repo doesn't already exist and has no errors. The repo will be created!
+            insert_query = "INSERT INTO Repository (RepoID, collabLeader, DateCreated) VALUES (?, ?, ?)"
+            self.send_SQL_query(insert_query, (RepoID, collabLeader, DateCreated))
+            print(f"Repository created successfully: RepoID={RepoID}, CollabLeader={collabLeader}")
+
+        # Send a success response (to let me know that im not going crazy)
+            self.send_json_response(201, {
+                'success': True,
+                'repo_id': RepoID,
+                'leader': collabLeader,
+                'creation_time': DateCreated
+            })
+
+        except Exception as e:
+        # Log and respond to any unexpected errors
+            print(f"Error creating repository: {e}")
+            self.send_json_response(500, {'error': 'Internal server error'})
+        
     def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
@@ -102,7 +157,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             stored_hashed_password = usernamePass[1]
             # check if password is correct
             if not bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password): 
-                self.send_json_response(400, {'error': 'Incorrect password'})
+                self.send_json_response(401, {'error': 'Incorrect password'})
                 return 
             else: # login successful
                 sessionID = random.randbytes(32).hex()
