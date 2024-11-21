@@ -195,6 +195,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             hashedPassword = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
             self.send_SQL_query('INSERT INTO securityInfo (UserName, passw) VALUES (?, ?)', (username, hashedPassword))
+            self.send_SQL_query('INSERT INTO User (UserName) VALUES (?)', (username,))
             self.DB_CONN.commit()
             # initialize anything needed for a new account
 
