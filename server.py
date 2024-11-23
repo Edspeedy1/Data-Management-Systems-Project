@@ -5,10 +5,12 @@ import sqlite3
 import time
 import json
 import os
+from multipart import MultipartParser
+from io import BytesIO
 
 PORT = 8045
 SESS_COOKIE_NAME = "project-forge-session-id"
-
+UPLOAD_FOLDER = "uploads"
 
 class ConnectedClient:
     def __init__(self, username, sessionID):
@@ -34,7 +36,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def do_GET(self):
-        if self.path == '/' or self.path == '/home':
+        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo']:
             self.path = '/index.html'
         if self.path == '/favicon.ico':
             return super().do_GET()
@@ -57,102 +59,113 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                     sessions[session].update_last_active_time()
                     break
 
-        if self.path == '/createRepo':
-           if username:  # Ensure the user is authenticated
-                print (username)
-                data = json.loads(post_data)
-                repo_name = data.get('repoID', '').strip()
-                # collab_leader = data.get('collabLeader', '').strip()
-                collab_leader = username  # Use the authenticated username as CollabLeader
+        if self.path == '/api/createRepo':
+            content_type = self.headers.get('Content-Type')
+            
+            # Ensure the content type is multipart/form-data
+            if 'multipart/form-data' in content_type:
+                parser = MultipartParser(BytesIO(post_data), boundary=content_type.split('boundary=')[1])
+                
+                repo_id = None
+                description = None
+                files = []
 
-                if not repo_name:
-                    self.send_json_response(400, {'error': 'Repository name is required'})
-                else:
-                    self.repoCreate(collab_leader, repo_name)
-           # else:
-                self.send_json_response(403, {'error': 'Unauthorized or missing session'})
+                # Loop through the parts parsed by MultipartParser
+                for part in parser.parts():
+                    if part.name == 'repo_id':
+                        repo_id = part.value
+                    elif part.name == 'description':
+                        description = part.value
+                    elif part.name == 'files':
+                        files.append({
+                            'filename': part.filename,
+                            'content_type': part.content_type,
+                            'content': part.value
+                        })
 
+                self.repoCreate(username, repo_id, description, files)
 
-        if self.path == '/login':
+        if self.path == '/api/login':
             data = json.loads(post_data)
             self.login(data['username'], data['password'])
 
-        if self.path == '/addCollab':
-            # fetch('/addCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
+        if self.path == '/api/addCollab':
+            # fetch('/api/addCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
             data = json.loads(post_data)
             change = False
             self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)
 
-        if self.path == '/editCollab':
-            # fetch('/editCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
+        if self.path == '/api/editCollab':
+            # fetch('/api/editCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
             data = json.loads(post_data)
             change=True
             self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
             
-        if self.path == '/getRepos':
+        if self.path == '/api/getUsersRepos':
             data = json.loads(post_data)
-            return self.getRepo(data['username'],username)   
+            return self.getUsersRepos(username, data['username'] if data['username'] else None)   
         
-        if self.path == '/searchBar':
+        if self.path == '/api/searchBar':
             data = json.loads(post_data)
             self.searchBar(data['word'])  
              
-    def repoCreate(self, collabLeader, RepoID):
-        DateCreated = time.time()
-        print(f"Collab Leader: {collabLeader}, RepoID: {RepoID}")
 
+    def repoCreate(self, collabLeader, repoID, description, files):
+        DateCreated = time.time()
+        print(f"Collab Leader: {collabLeader}, RepoID: {repoID}")
         try:
-        # Check if the user which collabLeader uses, exists
+            # Check if the user which collabLeader uses, exists
             user_query = "SELECT UserName FROM User WHERE UserName = ? COLLATE NOCASE"
-            userExists = self.send_SQL_query(user_query, (collabLeader,), get=True, fetchAll=False)
+            userExists = self.send_SQL_query(user_query, (collabLeader,))
             if not userExists:
                 print(f"Error: User '{collabLeader}' does not exist.")
                 self.send_json_response(205, {"error": "User does not exist"})
                 return
 
-        # Check if the RepoID already exists
+            # Check if the RepoID already exists
             repo_query = "SELECT COUNT(*) FROM Repository WHERE RepoID = ?"
-            repo_check = self.send_SQL_query(repo_query, (RepoID,), get=True, fetchAll=False)
-            if repo_check and repo_check[0] > 0:
-                print(f"Error: Repository ID '{RepoID}' already exists.")
+            repo_check = self.send_SQL_query(repo_query, (repoID,))
+            if repo_check and repo_check[0][0] > 0:
+                print(f"Error: Repository ID '{repoID}' already exists.")
                 self.send_json_response(409, {'error': 'Repository ID already exists'})
                 return
 
-        # If the repo doesn't already exist and has no errors. The repo will be created!
-            insert_query = "INSERT INTO Repository (RepoID, collabLeader, DateCreated) VALUES (?, ?, ?)"
-            self.send_SQL_query(insert_query, (RepoID, collabLeader, DateCreated))
-            print(f"Repository created successfully: RepoID={RepoID}, CollabLeader={collabLeader}")
+            # If the repo doesn't already exist and has no errors. The repo will be created!
+            insert_query = "INSERT INTO Repository (RepoID, RepoName, collabLeader, DateCreated) VALUES (?, ?, ?, ?)"
+            self.send_SQL_query(insert_query, (repoID, repoID, collabLeader, DateCreated))
+            print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
 
-        # Send a success response (to let me know that im not going crazy)
+            # Send a success response (to let me know that im not going crazy)
             self.send_json_response(201, {
                 'success': True,
-                'repo_id': RepoID,
+                'repo_id': repoID,
                 'leader': collabLeader,
                 'creation_time': DateCreated
             })
 
         except Exception as e:
-        # Log and respond to any unexpected errors
+            # Log and respond to any unexpected errors
             print(f"Error creating repository: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
                 
                           
-    def getRepo(self, username, usernameHost):
-        if username.lower()==usernameHost.lower():
+    def getUsersRepos(self, username, usernameHost):
+        if usernameHost and username.lower() == usernameHost.lower() or usernameHost is None:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ?"
         else:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ? and isPublic = True"
-        para=(username,)
-        results = self.send_SQL_query(query,para,True)
-        self.send_json_response(200, {'success': True,"repos":results})
+        params = (username,)
+        results = self.send_SQL_query(query, params)
+        results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
+        self.send_json_response(200, {'success': True, "repos":results})
     
     def searchBar(self,word):
         query = "SELECT RepoName FROM Repository WHERE RepoName LIKE = ?"
-        para = (word+'%',)
-        results = self.send_SQL_query(query,para,True)
-        self.send_json_response(200, {'success': True,"searchBar":results})
+        params = (word+'%',)
+        results = self.send_SQL_query(query, params)
+        self.send_json_response(200, {'success': True, "searchBar":results})
             
-    def addCollab(self,username,RepoID,accessLevel,change):   
+    def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
         lastActive = self.send_SQL_query(query, (username,))
@@ -179,16 +192,16 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         usernamePass = self.send_SQL_query('SELECT UserName, passw FROM securityInfo WHERE UserName = ? COLLATE NOCASE', (username,))
 
         if usernamePass != []:
-            stored_hashed_password = usernamePass[0][1]
+            storedHashedPassword = usernamePass[0][1]
             # check if password is correct
-            if not bcrypt.checkpw(password.encode('utf-8'), stored_hashed_password): 
+            if not bcrypt.checkpw(password.encode('utf-8'), storedHashedPassword): 
                 self.send_json_response(401, {'error': 'Incorrect password'})
                 return 
             else: # login successful
                 sessionID = random.randbytes(32).hex()
                 sessions[str(sessionID)] = ConnectedClient(username, sessionID)
                 self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
-                return 
+                return
 
         else: # new account creation
             print("making new account")
@@ -219,7 +232,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         try:
             cursor = self.DB_CONN.cursor()
             cursor.execute(query, params)
-            return (results:=cursor.fetchall())
+            return (results := cursor.fetchall())
         except Exception as e:
             print(e)
         finally:
@@ -228,6 +241,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             cursor.close()
 
 with http.server.HTTPServer(("", PORT), customRequestHandler) as httpd:
+
     print("serving at port", PORT)
     print("http://127.0.0.1:" + str(PORT))
     httpd.serve_forever()

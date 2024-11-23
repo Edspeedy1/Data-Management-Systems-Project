@@ -66,6 +66,8 @@ export const BackdropTriangles: React.FC = () => {
         };
 
         // Update and redraw triangles with smooth color transitions
+        let nextAnimationFrameId: number | null = null;
+
         const animate = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -81,7 +83,7 @@ export const BackdropTriangles: React.FC = () => {
                 drawTriangle(triangle.x, triangle.y, currentColor, triangle.flip);
             });
 
-            requestAnimationFrame(animate);
+            nextAnimationFrameId = requestAnimationFrame(animate);
         };
 
         // Start animation
@@ -97,6 +99,9 @@ export const BackdropTriangles: React.FC = () => {
 
         return () => {
             window.removeEventListener("resize", handleResize);
+            if (nextAnimationFrameId !== null) {
+                cancelAnimationFrame(nextAnimationFrameId);
+            }
         };
     }, [triangleSize, height, color1, color2]);
 

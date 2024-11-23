@@ -5,6 +5,8 @@ import { ContentBox } from '../components/ContentBox';
 import { SplitVertical } from '../components/SplitVertical';
 import { MouseBubble } from '../components/MouseBubble';
 import { Spacer } from '../components/Spacer';
+import { HomePageButtons } from '../components/HomePageButtons';
+import { UsersRepos } from '../components/UsersRepos';
 
 
 const Home: React.FC = () => {
@@ -19,14 +21,16 @@ const Home: React.FC = () => {
 						left={
 							<ContentBox bgColor="dark" hasBorder>
 								<div className="text-center w-[60vw] lg:h-[85vh] lg:w-[40vw]">
-									<h1 className="text-5xl font-bold">Side 1</h1>
+									<h1 className="text-5xl font-bold mb-4">My Repos</h1>
+									<UsersRepos />
 								</div>
 							</ContentBox>
 						}
 						right={
 							<ContentBox bgColor="dark" hasBorder>
 								<div className="text-center w-[60vw] lg:h-[85vh] lg:w-[40vw]">
-									<h1 className="text-5xl font-bold">Side 2</h1>
+									<h1 className="text-5xl font-bold mb-4">Buttons</h1>
+									<HomePageButtons />
 								</div>
 							</ContentBox>
 						}
