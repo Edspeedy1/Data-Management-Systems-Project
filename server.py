@@ -61,29 +61,33 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         if self.path == '/api/createRepo':
             content_type = self.headers.get('Content-Type')
-            
+
             # Ensure the content type is multipart/form-data
             if 'multipart/form-data' in content_type:
-                parser = MultipartParser(BytesIO(post_data), boundary=content_type.split('boundary=')[1])
-                
-                repo_id = None
+                boundary = content_type.split('boundary=')[1]
+                parser = MultipartParser(BytesIO(post_data), boundary=boundary)
+        
                 description = None
-                files = []
-
+                repoName = None
                 # Loop through the parts parsed by MultipartParser
                 for part in parser.parts():
-                    if part.name == 'repo_id':
+                    if part.name == 'repoID':  # This should match the form field name in your HTML form
                         repo_id = part.value
-                    elif part.name == 'description':
+                    elif part.name == 'description':  # This should match the form field name for description
                         description = part.value
-                    elif part.name == 'files':
-                        files.append({
-                            'filename': part.filename,
-                            'content_type': part.content_type,
-                            'content': part.value
-                        })
+                    elif part.name == "repoName":
+                        repoName = part.value
+                        
+                     # Call repoCreate with the collected data
+                    # Ensure repo_id and description are not None
+                    if repo_id and description: 
+                        self.repoCreate(username, repo_id, description, repoName)
+                    else:
+            # Return an error response if repo_id or description is missing
+                        self.send_response(400)
+                        self.end_headers()
+                        self.wfile.write(b"Error: Missing required fields 'repo_id' or 'description'.")
 
-                self.repoCreate(username, repo_id, description, files)
 
         if self.path == '/api/login':
             data = json.loads(post_data)
@@ -113,8 +117,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.logout(session)
              
 
-    def repoCreate(self, collabLeader, repoID, description, files):
+    def repoCreate(self, collabLeader, repoID, description, repoName):
         DateCreated = time.time()
+        repoName = repoID
         print(f"Collab Leader: {collabLeader}, RepoID: {repoID}")
         try:
             # Check if the user which collabLeader uses, exists
@@ -132,10 +137,23 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 print(f"Error: Repository ID '{repoID}' already exists.")
                 self.send_json_response(409, {'error': 'Repository ID already exists'})
                 return
+            
+            
 
             # If the repo doesn't already exist and has no errors. The repo will be created!
-            insert_query = "INSERT INTO Repository (RepoID, RepoName, collabLeader, DateCreated) VALUES (?, ?, ?, ?)"
-            self.send_SQL_query(insert_query, (repoID, repoID, collabLeader, DateCreated))
+            insert_query = """
+                INSERT INTO Repository (RepoID, DateCreated, RepoName, collabLeader, Passw, IsPublic, ReadMe)
+                VALUES (?, ?, ?, ?, ?, NULL, ?)
+                """
+              # Ensure repoName is passed correctly (and not a list or any invalid type)
+            if isinstance(repoName, list):
+                print("Error: repoName should be a string, not a list!")
+                return {"success": False, "message": "Invalid repoName type"}
+
+            # Pass the correct parameters to the query, ensuring the number of parameters matches the placeholders
+            self.send_SQL_query(insert_query, (repoID, DateCreated, repoName, collabLeader, None, description))
+
+
             print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
 
             # Send a success response (to let me know that im not going crazy)
