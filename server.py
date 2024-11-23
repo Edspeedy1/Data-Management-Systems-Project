@@ -90,13 +90,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.login(data['username'], data['password'])
 
         if self.path == '/api/addCollab':
-            # fetch('/api/addCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
+            # fetch('/api/addCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
             data = json.loads(post_data)
             change = False
             self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)
 
         if self.path == '/api/editCollab':
-            # fetch('/api/editCollab', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
+            # fetch('/api/editCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
             data = json.loads(post_data)
             change=True
             self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
@@ -108,6 +108,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/api/searchBar':
             data = json.loads(post_data)
             self.searchBar(data['word'])  
+        
+        if self.path == '/api/logout':
+            self.logout(session)
              
 
     def repoCreate(self, collabLeader, repoID, description, files):
@@ -159,12 +162,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
         self.send_json_response(200, {'success': True, "repos":results})
     
+
     def searchBar(self,word):
         query = "SELECT RepoName FROM Repository WHERE RepoName LIKE = ?"
         params = (word+'%',)
         results = self.send_SQL_query(query, params)
         self.send_json_response(200, {'success': True, "searchBar":results})
             
+
     def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
@@ -217,6 +222,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             sessions[str(sessionID)] = ConnectedClient(username, sessionID)
             self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
 
+    
+    def logout(self, sessionID):
+        if sessionID in sessions:
+            del sessions[sessionID]
+        else:
+            self.send_json_response(401, {'error': 'Not logged in'})
+
 
     def send_json_response(self, status_code, data, extra_headers=None):
         self.send_response(status_code)
@@ -241,7 +253,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             cursor.close()
 
 with http.server.HTTPServer(("", PORT), customRequestHandler) as httpd:
-
     print("serving at port", PORT)
     print("http://127.0.0.1:" + str(PORT))
     httpd.serve_forever()
