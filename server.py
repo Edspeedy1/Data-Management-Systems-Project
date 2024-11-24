@@ -119,7 +119,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             
         if self.path == '/api/getUsersRepos':
             data = json.loads(post_data)
-            return self.getUsersRepos(username, data['username'] if data['username'] else None)   
+            self.getUsersRepos(username, data['username'] if data['username'] else None)   
         
         if self.path == '/api/searchBar':
             data = json.loads(post_data)
@@ -220,11 +220,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     def getUsersRepos(self, username, usernameHost):
         if usernameHost and username.lower() == usernameHost.lower() or usernameHost is None:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ?"
+            params = (username,)
         else:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ? and isPublic = True"
-        params = (username,)
+            params = (usernameHost,)
         results = self.send_SQL_query(query, params)
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
+        for i in results:
+            print(i)
         self.send_json_response(200, {'success': True, "repos":results})
     
 
@@ -240,6 +243,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         params=(RepoID,)
         results=self.send_SQL_query(query, params)
         usernames = [row[0] for row in results]
+        for i in usernames:
+            print(i)
         self.send_json_response(200, {'success': True,"collabs":usernames})
         
     def addCollab(self, username, RepoID, accessLevel, change):   
