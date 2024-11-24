@@ -102,8 +102,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/api/editCollab':
             # fetch('/api/editCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
             data = json.loads(post_data)
-            change=True
-            self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
+            change = True
+            self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)   
             
         if self.path == '/api/getUsersRepos':
             data = json.loads(post_data)

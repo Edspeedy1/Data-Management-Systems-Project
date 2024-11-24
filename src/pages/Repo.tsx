@@ -1,12 +1,43 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BackdropTriangles } from "../components/BackdropTriangles";
 import { ContentBox } from "../components/ContentBox";
 import { Header } from "../components/Header";
 import { MouseBubble } from "../components/MouseBubble";
 import { Spacer } from "../components/Spacer";
+import { SettingsDropDown } from "../components/SettingsDropDown";
+import { CollabBox } from "../components/CollabBox";
 
 const Repo: React.FC = () => {
     const repoName = window.location.pathname.split("/")[2];
+
+    const [isLoadingDesc, setIsLoadingDesc] = useState(true);
+    const [description, setDescription] = useState("");
+
+    useEffect(() => {
+        const controller = new AbortController();
+        fetch('/api/getCollab', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repoID: repoName }),
+            signal: controller.signal
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                console.log(data);
+                // Update the state with the server response
+                setDescription(data.description || []);
+            })
+            .catch((error) => {
+                console.error("Error fetching repos:", error);
+            })
+            .finally(() => {
+                setIsLoadingDesc(false);
+            });
+
+        return () => {
+            controller.abort("unmounted"); // Abort the fetch request on component unmount
+        }
+    }, []);
 
     return (
         <div className="bg-primary w-[100vw] h-[100vh] flex flex-col items-center p-12">
@@ -25,7 +56,7 @@ const Repo: React.FC = () => {
                                         </button>
                                         <h1 className="text-3xl font-bold pl-12 pr-12">{repoName.replace(/%20/g, " ")}</h1>
                                         <Spacer space={20}/>
-                                        <h1 className="text-xl font-bold">Description</h1>
+                                        <h1 className="text-xl font-bold">{isLoadingDesc ? "Loading..." : description}</h1>
                                         <Spacer space={20}/>
                                         <div className="text-xl font-bold h-[calc(100%-100px)] overflow-y-auto" style={{
                                             scrollbarWidth: "thin",
@@ -38,10 +69,9 @@ const Repo: React.FC = () => {
                                         <p>Files</p>
                                     </div>
                                     <div className="w-[20%] border-dark border-l-4"> 
-                                        <p>Settings</p>
-                                        <p>search Bar</p>
-                                        <p>Collaborators -</p>
-                                        <p>upload Files</p>
+                                        <SettingsDropDown />
+                                        <CollabBox />
+                                        <p className="h-[20%]">upload Files</p>
                                     </div>
 								</div>
 							</ContentBox>
