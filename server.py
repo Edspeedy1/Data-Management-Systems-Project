@@ -93,6 +93,18 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(post_data)
             self.login(data['username'], data['password'])
 
+        if self.path == '/api/changeUI':
+            data = json.loads(post_data)
+            self.changeUI(
+                data['UserName'],                      
+                data.get('PrimaryColor'),              
+                data.get('SecondaryColor'),            
+                data.get('TertiaryColor'),             
+                data.get('FontType'),                  
+                data.get('Theme'),                     
+                data.get('RepoID')                     
+            )
+
         if self.path == '/api/addCollab':
             # fetch('/api/addCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
             data = json.loads(post_data)
@@ -111,12 +123,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         if self.path == '/api/searchBar':
             data = json.loads(post_data)
-            self.searchBar(data['word'])  
+            self.searchBar(data['word']) 
         
         if self.path == '/api/logout':
             self.logout(session)
              
-
+        # Assuming this is part of your `do_POST` method that handles requests
+    
     def repoCreate(self, collabLeader, repoID, description, repoName):
         DateCreated = time.time()
         repoName = repoID
@@ -138,8 +151,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json_response(409, {'error': 'Repository ID already exists'})
                 return
             
-            
-
             # If the repo doesn't already exist and has no errors. The repo will be created!
             insert_query = """
                 INSERT INTO Repository (RepoID, DateCreated, RepoName, collabLeader, Passw, IsPublic, ReadMe)
@@ -169,7 +180,39 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Error creating repository: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
                 
-                          
+    def changeUI(self, username, primary_color, secondary_color, tertiary_color, font_type, theme, repo_id):
+        try:
+        # Print all received values for debugging
+            print(f"Username: {username}")
+            print(f"PrimaryColor: {primary_color}")
+            print(f"SecondaryColor: {secondary_color}")
+            print(f"TertiaryColor: {tertiary_color}")
+            print(f"FontType: {font_type}")
+            print(f"Theme: {theme}")
+            print(f"RepoID: {repo_id}")
+
+        # Insert directly into the database
+            insert_query = """
+                INSERT INTO UI (UiID, UserName, PrimaryColor, SecondaryColor, TertiaryColor, FontType, Theme, RepoID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            ui_id = random.randint(1, 1000000)  # Generate a unique ID
+
+        # Execute the query
+            self.send_SQL_query(
+                insert_query,
+                (ui_id, username, primary_color, secondary_color, tertiary_color, font_type, theme, repo_id)
+            )
+
+        # Send success response
+            self.send_json_response(200, {"success": True, "message": "UI settings inserted successfully"})
+
+        except Exception as e:
+            print(f"Error in changeUI: {e}")
+            self.send_json_response(500, {"error": "Internal server error"})
+
+
+
     def getUsersRepos(self, username, usernameHost):
         if usernameHost and username.lower() == usernameHost.lower() or usernameHost is None:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ?"
