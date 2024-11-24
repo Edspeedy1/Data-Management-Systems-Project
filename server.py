@@ -270,12 +270,21 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         # If the folder doesn't already exist, create it
             insert_query = " INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated, fileSuggestions) VALUES (?, ?, NULL, ?, NULL)"
             self.send_SQL_query(insert_query, (folderID, repoID, dateAdded))
+            full_path = os.path.join(UPLOAD_FOLDER, folderID)
+            os.makedirs(full_path, exist_ok=True)
+            
+
             print(f"Folder created successfully: FolderID={folderID}, CollabLeader={collabLeader}")
 
         except Exception as e:
         # Log and respond to any unexpected errors
             print(f"Error creating folder: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
+
+
+
+#------------------------------------------
+
 
 
             
