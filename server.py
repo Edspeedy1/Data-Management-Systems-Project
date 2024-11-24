@@ -125,6 +125,10 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(post_data)
             self.searchBar(data['word']) 
         
+        if self.path == '/api/getCollab':
+            data = json.loads(post_data)
+            self.getCollab(data['RepoID']) 
+            
         if self.path == '/api/logout':
             self.logout(session)
              
@@ -231,7 +235,12 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
         self.send_json_response(200, {'success': True, "repos":results})
             
-
+    def getCollab(self,RepoID):
+        query = "SELECT UserName FROM Collaborator WHERE RepoID LIKE ?"
+        params=(RepoID,)
+        results=self.send_SQL_query(query, params)
+        self.send_json_response(200, {'success': True,"collabs":results})
+        
     def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
