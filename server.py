@@ -299,7 +299,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     
 
     def searchBar(self,word):
-        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE ?"
+        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE ? and isPublic = True"
         params = (word+'%',)
         results = self.send_SQL_query(query, params)
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
