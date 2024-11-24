@@ -112,6 +112,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 data.get('repoID')                     
             )
 
+        if self.path == '/api/getUsername':
+            self.send_json_response(200, {'success': True, 'username': username})
+        
+        if self.path == '/api/getNumberOfRepos':
+            results = self.send_SQL_query("SELECT COUNT(*) FROM Repository WHERE collabLeader = ?", (username,))
+            self.send_json_response(200, {'success': True, 'number': results[0][0]})
+
         if self.path == '/api/addCollab':
             data = json.loads(post_data)
             change = False
@@ -329,7 +336,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         else:
             check_query = "SELECT COUNT(*) FROM Collaborator WHERE UserName = ? AND RepoID = ?"
             exists = self.send_SQL_query(check_query, (username, RepoID))
-            print(exists)
             if (exists[0][0] == 0):
                 query = 'INSERT INTO Collaborator (UserName, RepoID, LastLogin, accessLevel) VALUES (?, ?, ?, ?)'
                 params = (username, RepoID, lastActive[0], accessLevel)

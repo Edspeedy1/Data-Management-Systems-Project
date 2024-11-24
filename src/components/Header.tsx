@@ -11,10 +11,10 @@ export const Header: React.FC<
 	return (
 		<header className="fixed top-0 left-0 border-b-border border-b-2 bg-dark w-[100vw] h-16 flex justify-between overflow-hidden">
 			<div className="flex items-center w-[75vw]"> 
-				<div className="flex items-center cursor-pointer" onClick={() => window.location.href = "/home" }>
+				<a className="flex items-center cursor-pointer" href={hasSearch ? "/home" : "/"}>
 					<img src="../content/icon.png" className="mr-4 h-16" />
 					<h1 className="text-3xl sm:text-5xl font-bold pb-1 sm:pb-3">Project Forge</h1>
-				</div>
+				</a>
 			</div>
 			{hasSearch && (
 				<div className="pr-4 justify-end flex items-center relative">

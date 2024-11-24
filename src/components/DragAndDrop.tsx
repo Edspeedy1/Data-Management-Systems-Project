@@ -48,14 +48,14 @@ export const DragAndDrop: React.FC<DragAndDropProps> = ({ files, setFiles, onUpl
     };
         
 	return (
-		<div className="w-full flex flex-col items-center justify-center space-y-4">
+		<div className="w-full flex flex-col items-center justify-center space-y-4 mt-8">
 			<div
 				className="p-4 border-2 border-dashed border-gray-400 flex flex-col items-center justify-center bg-gray-100 cursor-pointer"
 				onDrop={handleDrop}
 				onDragOver={handleDragOver}
 			>
-				<button className="text-2xl font-bold absolute top-[60%] right-4" onClick={() => setFiles([])}>X</button>
-				<ul className="w-1/2 bg-white border rounded p-2 ">
+				<button className="text-2xl font-bold absolute top-[64%] right-8" onClick={() => setFiles([])}>X</button>
+				<ul className="bg-white border rounded p-2 ">
 					{files.length > 0 ? (
 						renderFiles()
 					) : (

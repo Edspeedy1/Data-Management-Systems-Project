@@ -5,6 +5,7 @@ export const LoginInputs: React.FC = () => {
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [isActive, setIsActive] = useState(false);
+	const [error, setError] = useState("");
 
 	// Use effect to track changes in username and password and update the button state immediately
 	React.useEffect(() => {
@@ -39,6 +40,8 @@ export const LoginInputs: React.FC = () => {
 				if (data.success) {
 					console.log("redirecting...");
 					window.location.href = "/home";
+				} else {
+					setError("Invalid username or password");
 				}
 			});
 	}
@@ -70,6 +73,7 @@ export const LoginInputs: React.FC = () => {
 				type="submit"
 				disabled={!isActive}
 			> Submit </button>
+			{error && <p className="text-red-500">{error}</p>}
 		</form>
 	);
 };

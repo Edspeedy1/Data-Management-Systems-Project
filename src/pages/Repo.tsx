@@ -16,7 +16,7 @@ const Repo: React.FC = () => {
 
     useEffect(() => {
         const controller = new AbortController();
-        fetch('/api/getCollab', {
+        fetch('/api/getRepoDescription', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ repoID: repoName }),
@@ -25,8 +25,7 @@ const Repo: React.FC = () => {
             .then((response) => response.json())
             .then((data) => {
                 console.log(data);
-                // Update the state with the server response
-                setDescription(data.description || []);
+                setDescription(data.description || '');
             })
             .catch((error) => {
                 console.error("Error fetching repos:", error);
@@ -63,7 +62,6 @@ const Repo: React.FC = () => {
                                             scrollbarWidth: "thin",
                                             scrollbarColor: "#888 #333",
                                         }}>
-                                            <p>Comments</p>
                                         </div>
                                     </div>
                                     <div className="w-[100%]">
