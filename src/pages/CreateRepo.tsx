@@ -58,6 +58,7 @@ const CreateRepo: React.FC = () => {
             .then((data) => {
                 if (data.success) {
                     console.log("Repo created successfully:", data);
+                    window.location.href = data.URL;
                 } else {
                     console.error("Failed to create repo:", data);
                 }
