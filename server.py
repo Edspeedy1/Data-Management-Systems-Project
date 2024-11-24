@@ -36,7 +36,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def do_GET(self):
-        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo', '/search'] or '/repo/' in self.path:
+        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo', '/search'] or '/repo/' in self.path or '/search'in self.path:
             self.path = '/index.html'
         if self.path == '/favicon.ico':
             return super().do_GET()
@@ -251,16 +251,20 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
         lastActive = self.send_SQL_query(query, (username,))
+        if lastActive:
+            lastActive[0]=lastActive[0][0]
+        else:
+            lastActive.append(0)
         if change:
             query = "UPDATE Collaborator SET UserName = ?, RepoID = ?, LastLogin = ?, accessLevel = ? WHERE username=?"
-            params = (username, RepoID, lastActive, accessLevel, username)
+            params = (username, RepoID, lastActive[0], accessLevel, username)
         else:
             check_query = "SELECT COUNT(*) FROM Collaborator WHERE UserName = ? AND RepoID = ?"
             exists = self.send_SQL_query(check_query, (username, RepoID))
             print(exists)
             if (exists[0][0] == 0):
                 query = 'INSERT INTO Collaborator (UserName, RepoID, LastLogin, accessLevel) VALUES (?, ?, ?, ?)'
-                params = (username, RepoID, lastActive, accessLevel)
+                params = (username, RepoID, lastActive[0], accessLevel)
             else:
                 self.send_json_response(201, {'success': False})
                 return
