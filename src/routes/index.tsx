@@ -15,7 +15,7 @@ const AppRoutes: React.FC = () => {
 				<Route path="/" element={<Login />} />
 				<Route path="/login" element={<Login />} />
 				<Route path="/home" element={<Home />} />
-				<Route path="/repo" element={<Repo />} />
+				<Route path="/repo/*" element={<Repo />} />
 				<Route path="/createRepo" element={<CreateRepo />} />
 				<Route path="/uploadFiles" element={<UploadFiles />} />
 				<Route path="/accountInfo" element={<AccountIngo />} />

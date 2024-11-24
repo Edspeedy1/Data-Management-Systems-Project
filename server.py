@@ -84,15 +84,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                             'content_type': part.content_type,
                             'content': part.value
                         })
-
-                    
                         
-                     # Call repoCreate with the collected data
+                    # Call repoCreate with the collected data
                     # Ensure repo_id and description are not None
                     if repo_id and description: 
                         self.repoCreate(username, repo_id, description, repoName)
                     else:
-            # Return an error response if repo_id or description is missing
+                        # Return an error response if repo_id or description is missing
                         self.send_response(400)
                         self.end_headers()
                         self.wfile.write(b"Error: Missing required fields 'repo_id' or 'description'.")
@@ -111,20 +109,18 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 data.get('TertiaryColor'),             
                 data.get('FontType'),                  
                 data.get('Theme'),                     
-                data.get('RepoID')                     
+                data.get('repoID')                     
             )
 
         if self.path == '/api/addCollab':
-            # fetch('/api/addCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
             data = json.loads(post_data)
             change = False
-            self.addCollab(data['username'], data['RepoID'], data['accessLevel'], change)
+            self.addCollab(data['username'], data['repoID'], data['accessLevel'], change)
 
-        if self.path == '/api/editCollab':
-            # fetch('/api/editCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":0}) })
+        if self.path == '/api/removeCollab':
             data = json.loads(post_data)
-            change=True
-            self.addCollab(data['username'], data['RepoID'], data['accessLevel'],change)   
+            change = True
+            self.removeCollab(data['username'], data['repoID'])   
             
         if self.path == '/api/getUsersRepos':
             data = json.loads(post_data)
@@ -136,7 +132,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         if self.path == '/api/getCollab':
             data = json.loads(post_data)
-            self.getCollab(data['RepoID']) 
+            self.getCollab(data['repoID']) 
             
         if self.path == '/api/logout':
             self.logout(session)
@@ -144,15 +140,24 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/api/folderCreate':
             data = json.loads(post_data)
             self.folderCreate(data['collabLeader'], data['repoID'], data['folderID'])
+        
+        if self.path == '/api/repoPublic':
+            data = json.loads(post_data)
+            self.repoPublic(data['repoID'], data['isPublic'], data['get'])
              
     #---------------------------------------------------------------------------
-
-    
-
-
- #---------------------------------------------------------------------------
-
    
+    def repoPublic(self, repoID, isPublic, get):
+        print(f"repoID: {repoID}, isPublic: {isPublic}, get: {get}")
+        if not get:
+            query = "UPDATE Repository SET IsPublic = ? WHERE RepoID = ?"
+            self.send_SQL_query(query, (isPublic, repoID))
+            self.send_json_response(200, {'success': True, 'isPublic': isPublic})
+        else:
+            query = "SELECT IsPublic FROM Repository WHERE RepoID = ?"
+            results = self.send_SQL_query(query, (repoID,))[0][0]
+            self.send_json_response(200, {'success': True, 'isPublic': results})
+
     def repoCreate(self, collabLeader, repoID, description, repoName):
         DateCreated = time.time()
         repoName = repoID
@@ -293,8 +298,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             params = (usernameHost,)
         results = self.send_SQL_query(query, params)
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
-        for i in results:
-            print(i)
         self.send_json_response(200, {'success': True, "repos":results})
     
 
@@ -310,8 +313,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         params=(RepoID,)
         results=self.send_SQL_query(query, params)
         usernames = [row[0] for row in results]
-        for i in usernames:
-            print(i)
         self.send_json_response(200, {'success': True,"collabs":usernames})
         
     def addCollab(self, username, RepoID, accessLevel, change):   
@@ -336,8 +337,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json_response(201, {'success': False})
                 return
         self.send_SQL_query(query, params)
-        self.send_json_response(200, {'success': True})
+        self.getCollab(RepoID)
             
+            
+    def removeCollab(self, username, RepoID):
+        query = "DELETE FROM Collaborator WHERE UserName = ? AND RepoID = ?"
+        params = (username, RepoID)
+        self.send_SQL_query(query, params)
+        self.getCollab(RepoID)
 
     def login(self, username, password):
         username = username.strip()

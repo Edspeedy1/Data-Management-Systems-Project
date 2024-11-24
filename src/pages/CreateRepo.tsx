@@ -62,9 +62,6 @@ const CreateRepo: React.FC = () => {
                     console.error("Failed to create repo:", data);
                 }
             })
-            .catch((error) => {
-                console.error("Error creating repo:", error);
-            });
     }
     
 
