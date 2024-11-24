@@ -87,14 +87,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                         
                     # Call repoCreate with the collected data
                     # Ensure repo_id and description are not None
-                    if repo_id and description: 
-                        self.repoCreate(username, repo_id, description, repoName)
-                    else:
-                        # Return an error response if repo_id or description is missing
-                        self.send_response(400)
-                        self.end_headers()
-                        self.wfile.write(b"Error: Missing required fields 'repo_id' or 'description'.")
-
+                if repo_id and description: 
+                    self.repoCreate(username, repo_id, description, repoName)
+             
 
         if self.path == '/api/login':
             data = json.loads(post_data)
@@ -151,8 +146,36 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/api/repoPublic':
             data = json.loads(post_data)
             self.repoPublic(data['repoID'], data['isPublic'], data['get'])
+        
+        if self.path == '/api/getRepoDescription':
+            data = json.loads(post_data)
+            self.getRepoDescription(data['repoID'])
              
+
     #---------------------------------------------------------------------------
+
+    def getRepoDescription(self, repoID):
+        try:
+            repoQuery = "SELECT ReadMe FROM Repository WHERE RepoID = ?"
+            result = self.send_SQL_query(repoQuery, (repoID,))      
+            # Check if any result is returned
+            if not result or len(result) == 0:
+                print(f"Error: Repository with RepoID '{repoID}' does not exist.")
+                results = {"error": "Repository not found"}
+                self.send_json_response(409, {"repoID": repoID, "description": readme, "ERROR": True})
+            # Extract the ReadMe from the result
+            readme = result[0][0]  # Assuming result is a list of tuples        
+            # Send the ReadMe to results
+            results = {"repoID": repoID, "description": readme}
+            print(f"Results: {results}")
+            self.send_json_response(200, {"repoID": repoID, "description": readme})
+
+        except Exception as e:
+            print(f"Error retrieving ReadMe for RepoID '{repoID}': {e}")
+            results = {"error": "Internal server error"}
+            self.send_json_response(409, {"repoID": repoID, "description": readme, "ERROR": True})
+        
+
    
     def repoPublic(self, repoID, isPublic, get):
         print(f"repoID: {repoID}, isPublic: {isPublic}, get: {get}")
@@ -176,7 +199,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             if not userExists:
                 print(f"Error: User '{collabLeader}' does not exist.")
                 self.send_json_response(205, {"error": "User does not exist"})
-                return
+                
 
             # Check if the RepoID already exists
             repo_query = "SELECT COUNT(*) FROM Repository WHERE RepoID = ?"
@@ -184,7 +207,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             if repo_check and repo_check[0][0] > 0:
                 print(f"Error: Repository ID '{repoID}' already exists.")
                 self.send_json_response(409, {'error': 'Repository ID already exists'})
-                return
+                
             
             # If the repo doesn't already exist and has no errors. The repo will be created!
             insert_query = """
@@ -194,7 +217,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
               # Ensure repoName is passed correctly (and not a list or any invalid type)
             if isinstance(repoName, list):
                 print("Error: repoName should be a string, not a list!")
-                return {"success": False, "message": "Invalid repoName type"}
+                
 
             # Pass the correct parameters to the query, ensuring the number of parameters matches the placeholders
             self.send_SQL_query(insert_query, (repoID, DateCreated, repoName, collabLeader, None, description))
@@ -211,7 +234,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'success': True,
                 'repo_id': repoID,
                 'leader': collabLeader,
-                'creation_time': DateCreated
+                'creation_time': DateCreated,
+                'URL': "repo/" + repoID
             })
 
         except Exception as e:
@@ -247,15 +271,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             insert_query = " INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated, fileSuggestions) VALUES (?, ?, NULL, ?, NULL)"
             self.send_SQL_query(insert_query, (folderID, repoID, dateAdded))
             print(f"Folder created successfully: FolderID={folderID}, CollabLeader={collabLeader}")
-
-
-        # Send a success response
-            self.send_json_response(201, {
-                'success': True,
-                'folder_id': folderID,
-                'leader': collabLeader,
-                'creation_time': dateAdded
-            })
 
         except Exception as e:
         # Log and respond to any unexpected errors
