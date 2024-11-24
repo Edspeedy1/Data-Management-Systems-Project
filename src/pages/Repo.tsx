@@ -6,6 +6,7 @@ import { MouseBubble } from "../components/MouseBubble";
 import { Spacer } from "../components/Spacer";
 import { SettingsDropDown } from "../components/SettingsDropDown";
 import { CollabBox } from "../components/CollabBox";
+import { UploadFiles } from "../components/UploadFiles";
 
 const Repo: React.FC = () => {
     const repoName = window.location.pathname.split("/")[2];
@@ -62,7 +63,7 @@ const Repo: React.FC = () => {
                                             scrollbarWidth: "thin",
                                             scrollbarColor: "#888 #333",
                                         }}>
-                                            <p>Itterations</p>
+                                            <p>Comments</p>
                                         </div>
                                     </div>
                                     <div className="w-[100%]">
@@ -71,7 +72,7 @@ const Repo: React.FC = () => {
                                     <div className="w-[20%] border-dark border-l-4"> 
                                         <SettingsDropDown />
                                         <CollabBox />
-                                        <p className="h-[20%]">upload Files</p>
+                                        <UploadFiles />
                                     </div>
 								</div>
 							</ContentBox>
