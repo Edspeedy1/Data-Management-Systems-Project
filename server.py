@@ -36,7 +36,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def do_GET(self):
-        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo', '/search'] or '/repo/' in self.path:
+        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo', '/search'] or '/repo/' in self.path or '/search'in self.path:
             self.path = '/index.html'
         if self.path == '/favicon.ico':
             return super().do_GET()
@@ -69,6 +69,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         
                 description = None
                 repoName = None
+                files = []
                 # Loop through the parts parsed by MultipartParser
                 for part in parser.parts():
                     if part.name == 'repoID':  # This should match the form field name in your HTML form
@@ -77,6 +78,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                         description = part.value
                     elif part.name == "repoName":
                         repoName = part.value
+                    elif part.name == 'files':
+                        files.append({
+                            'filename': part.filename,
+                            'content_type': part.content_type,
+                            'content': part.value
+                        })
+
+                    
                         
                      # Call repoCreate with the collected data
                     # Ensure repo_id and description are not None
@@ -93,6 +102,18 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(post_data)
             self.login(data['username'], data['password'])
 
+        if self.path == '/api/changeUI':
+            data = json.loads(post_data)
+            self.changeUI(
+                data['UserName'],                      
+                data.get('PrimaryColor'),              
+                data.get('SecondaryColor'),            
+                data.get('TertiaryColor'),             
+                data.get('FontType'),                  
+                data.get('Theme'),                     
+                data.get('RepoID')                     
+            )
+
         if self.path == '/api/addCollab':
             # fetch('/api/addCollab', { method: 'POST', body: JSON.stringify({ "username":"Ethan27108","RepoID":5,"accessLevel":1}) })
             data = json.loads(post_data)
@@ -107,16 +128,31 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             
         if self.path == '/api/getUsersRepos':
             data = json.loads(post_data)
-            return self.getUsersRepos(username, data['username'] if data['username'] else None)   
+            self.getUsersRepos(username, data['username'] if data['username'] else None)   
         
         if self.path == '/api/searchBar':
             data = json.loads(post_data)
-            self.searchBar(data['word'])  
+            self.searchBar(data['word']) 
         
+        if self.path == '/api/getCollab':
+            data = json.loads(post_data)
+            self.getCollab(data['RepoID']) 
+            
         if self.path == '/api/logout':
             self.logout(session)
-             
 
+        if self.path == '/api/folderCreate':
+            data = json.loads(post_data)
+            self.folderCreate(data['collabLeader'], data['repoID'], data['folderID'])
+             
+    #---------------------------------------------------------------------------
+
+    
+
+
+ #---------------------------------------------------------------------------
+
+   
     def repoCreate(self, collabLeader, repoID, description, repoName):
         DateCreated = time.time()
         repoName = repoID
@@ -138,8 +174,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_json_response(409, {'error': 'Repository ID already exists'})
                 return
             
-            
-
             # If the repo doesn't already exist and has no errors. The repo will be created!
             insert_query = """
                 INSERT INTO Repository (RepoID, DateCreated, RepoName, collabLeader, Passw, IsPublic, ReadMe)
@@ -153,7 +187,11 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Pass the correct parameters to the query, ensuring the number of parameters matches the placeholders
             self.send_SQL_query(insert_query, (repoID, DateCreated, repoName, collabLeader, None, description))
 
-
+        # Call folderCreate for the initial folder creation
+            print(f"Calling folderCreate for initial folder creation...")
+            folderID = f"{repoID}_root"
+            print(f"Calling folderCreate for initial folder creation with FolderID={folderID}")
+            self.folderCreate(collabLeader, repoID, folderID)
             print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
 
             # Send a success response (to let me know that im not going crazy)
@@ -168,16 +206,95 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Log and respond to any unexpected errors
             print(f"Error creating repository: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
+
+#------------------------------------------
                 
-                          
+              # Assuming this is part of your `do_POST` method that handles requests
+    def folderCreate(self, collabLeader, repoID, folderID):
+        dateAdded = time.time()
+        print(f"Commencing folder creation... folderID: {folderID}")
+
+        try:
+            # Check if the user exists
+            user_query = "SELECT UserName FROM User WHERE UserName = ? COLLATE NOCASE"
+            userExists = self.send_SQL_query(user_query, (collabLeader,))
+            if not userExists:
+                print(f"Error: User '{collabLeader}' does not exist.")
+                self.send_json_response(200, {"error": "User does not exist"})
+                return
+            
+        # Check if the folderID already exists
+            folder_query = "SELECT COUNT(*) FROM codeStorage WHERE folderID = ?"
+            folder_check = self.send_SQL_query(folder_query, (folderID,))
+            if folder_check and folder_check[0][0] > 0:
+                print(f"Error: Folder ID '{folderID}' already exists.")
+                self.send_json_response(410, {'error': 'Folder ID already exists'})
+                return
+
+        # If the folder doesn't already exist, create it
+            insert_query = " INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated, fileSuggestions) VALUES (?, ?, NULL, ?, NULL)"
+            self.send_SQL_query(insert_query, (folderID, repoID, dateAdded))
+            print(f"Folder created successfully: FolderID={folderID}, CollabLeader={collabLeader}")
+
+
+        # Send a success response
+            self.send_json_response(201, {
+                'success': True,
+                'folder_id': folderID,
+                'leader': collabLeader,
+                'creation_time': dateAdded
+            })
+
+        except Exception as e:
+        # Log and respond to any unexpected errors
+            print(f"Error creating folder: {e}")
+            self.send_json_response(500, {'error': 'Internal server error'})
+
+
+            
+    def changeUI(self, username, primary_color, secondary_color, tertiary_color, font_type, theme, repo_id):
+        try:
+        # Print all received values for debugging
+            print(f"Username: {username}")
+            print(f"PrimaryColor: {primary_color}")
+            print(f"SecondaryColor: {secondary_color}")
+            print(f"TertiaryColor: {tertiary_color}")
+            print(f"FontType: {font_type}")
+            print(f"Theme: {theme}")
+            print(f"RepoID: {repo_id}")
+
+        # Insert directly into the database
+            insert_query = """
+                INSERT INTO UI (UiID, UserName, PrimaryColor, SecondaryColor, TertiaryColor, FontType, Theme, RepoID)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            ui_id = random.randint(1, 1000000)  # Generate a unique ID
+
+        # Execute the query
+            self.send_SQL_query(
+                insert_query,
+                (ui_id, username, primary_color, secondary_color, tertiary_color, font_type, theme, repo_id)
+            )
+
+        # Send success response
+            self.send_json_response(200, {"success": True, "message": "UI settings inserted successfully"})
+
+        except Exception as e:
+            print(f"Error in changeUI: {e}")
+            self.send_json_response(500, {"error": "Internal server error"})
+
+
     def getUsersRepos(self, username, usernameHost):
         if usernameHost and username.lower() == usernameHost.lower() or usernameHost is None:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ?"
+            params = (username,)
         else:
             query = "SELECT RepoName FROM Repository WHERE CollabLeader = ? and isPublic = True"
-        params = (username,)
+            params = (usernameHost,)
         results = self.send_SQL_query(query, params)
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
+        for i in results:
+            print(i)
         self.send_json_response(200, {'success': True, "repos":results})
     
 
@@ -188,21 +305,33 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
         self.send_json_response(200, {'success': True, "repos":results})
             
-
+    def getCollab(self,RepoID):
+        query = "SELECT UserName FROM Collaborator WHERE RepoID LIKE ?"
+        params=(RepoID,)
+        results=self.send_SQL_query(query, params)
+        usernames = [row[0] for row in results]
+        for i in usernames:
+            print(i)
+        self.send_json_response(200, {'success': True,"collabs":usernames})
+        
     def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
         query = "SELECT LastLogin FROM securityInfo WHERE UserName=?"
         lastActive = self.send_SQL_query(query, (username,))
+        if lastActive:
+            lastActive[0]=lastActive[0][0]
+        else:
+            lastActive.append(0)
         if change:
             query = "UPDATE Collaborator SET UserName = ?, RepoID = ?, LastLogin = ?, accessLevel = ? WHERE username=?"
-            params = (username, RepoID, lastActive, accessLevel, username)
+            params = (username, RepoID, lastActive[0], accessLevel, username)
         else:
             check_query = "SELECT COUNT(*) FROM Collaborator WHERE UserName = ? AND RepoID = ?"
             exists = self.send_SQL_query(check_query, (username, RepoID))
             print(exists)
             if (exists[0][0] == 0):
                 query = 'INSERT INTO Collaborator (UserName, RepoID, LastLogin, accessLevel) VALUES (?, ?, ?, ?)'
-                params = (username, RepoID, lastActive, accessLevel)
+                params = (username, RepoID, lastActive[0], accessLevel)
             else:
                 self.send_json_response(201, {'success': False})
                 return
