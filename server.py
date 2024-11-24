@@ -239,7 +239,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         query = "SELECT UserName FROM Collaborator WHERE RepoID LIKE ?"
         params=(RepoID,)
         results=self.send_SQL_query(query, params)
-        self.send_json_response(200, {'success': True,"collabs":results})
+        usernames = [row[0] for row in results]
+        self.send_json_response(200, {'success': True,"collabs":usernames})
         
     def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
