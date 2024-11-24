@@ -69,6 +69,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         
                 description = None
                 repoName = None
+                files = []
                 # Loop through the parts parsed by MultipartParser
                 for part in parser.parts():
                     if part.name == 'repoID':  # This should match the form field name in your HTML form
@@ -77,6 +78,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                         description = part.value
                     elif part.name == "repoName":
                         repoName = part.value
+                    elif part.name == 'files':
+                        files.append({
+                            'filename': part.filename,
+                            'content_type': part.content_type,
+                            'content': part.value
+                        })
+
+                    
                         
                      # Call repoCreate with the collected data
                     # Ensure repo_id and description are not None
@@ -131,9 +140,19 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             
         if self.path == '/api/logout':
             self.logout(session)
+
+        if self.path == '/api/folderCreate':
+            data = json.loads(post_data)
+            self.folderCreate(data['collabLeader'], data['repoID'], data['folderID'])
              
-        # Assuming this is part of your `do_POST` method that handles requests
+    #---------------------------------------------------------------------------
+
     
+
+
+ #---------------------------------------------------------------------------
+
+   
     def repoCreate(self, collabLeader, repoID, description, repoName):
         DateCreated = time.time()
         repoName = repoID
@@ -168,7 +187,11 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Pass the correct parameters to the query, ensuring the number of parameters matches the placeholders
             self.send_SQL_query(insert_query, (repoID, DateCreated, repoName, collabLeader, None, description))
 
-
+        # Call folderCreate for the initial folder creation
+            print(f"Calling folderCreate for initial folder creation...")
+            folderID = f"{repoID}_root"
+            print(f"Calling folderCreate for initial folder creation with FolderID={folderID}")
+            self.folderCreate(collabLeader, repoID, folderID)
             print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
 
             # Send a success response (to let me know that im not going crazy)
@@ -183,7 +206,52 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Log and respond to any unexpected errors
             print(f"Error creating repository: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
+
+#------------------------------------------
                 
+              # Assuming this is part of your `do_POST` method that handles requests
+    def folderCreate(self, collabLeader, repoID, folderID):
+        dateAdded = time.time()
+        print(f"Commencing folder creation... folderID: {folderID}")
+
+        try:
+            # Check if the user exists
+            user_query = "SELECT UserName FROM User WHERE UserName = ? COLLATE NOCASE"
+            userExists = self.send_SQL_query(user_query, (collabLeader,))
+            if not userExists:
+                print(f"Error: User '{collabLeader}' does not exist.")
+                self.send_json_response(200, {"error": "User does not exist"})
+                return
+            
+        # Check if the folderID already exists
+            folder_query = "SELECT COUNT(*) FROM codeStorage WHERE folderID = ?"
+            folder_check = self.send_SQL_query(folder_query, (folderID,))
+            if folder_check and folder_check[0][0] > 0:
+                print(f"Error: Folder ID '{folderID}' already exists.")
+                self.send_json_response(410, {'error': 'Folder ID already exists'})
+                return
+
+        # If the folder doesn't already exist, create it
+            insert_query = " INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated, fileSuggestions) VALUES (?, ?, NULL, ?, NULL)"
+            self.send_SQL_query(insert_query, (folderID, repoID, dateAdded))
+            print(f"Folder created successfully: FolderID={folderID}, CollabLeader={collabLeader}")
+
+
+        # Send a success response
+            self.send_json_response(201, {
+                'success': True,
+                'folder_id': folderID,
+                'leader': collabLeader,
+                'creation_time': dateAdded
+            })
+
+        except Exception as e:
+        # Log and respond to any unexpected errors
+            print(f"Error creating folder: {e}")
+            self.send_json_response(500, {'error': 'Internal server error'})
+
+
+            
     def changeUI(self, username, primary_color, secondary_color, tertiary_color, font_type, theme, repo_id):
         try:
         # Print all received values for debugging
@@ -214,7 +282,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"Error in changeUI: {e}")
             self.send_json_response(500, {"error": "Internal server error"})
-
 
 
     def getUsersRepos(self, username, usernameHost):
