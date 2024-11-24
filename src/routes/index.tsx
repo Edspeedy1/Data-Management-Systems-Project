@@ -6,6 +6,7 @@ import Repo from "../pages/Repo";
 import AccountIngo from "../pages/AccountInfo";
 import CreateRepo from "../pages/CreateRepo";
 import UploadFiles from "../pages/UploadFiles";
+import SearchPage from "../pages/SearchPage";
 
 const AppRoutes: React.FC = () => {
 	return (
@@ -18,6 +19,7 @@ const AppRoutes: React.FC = () => {
 				<Route path="/createRepo" element={<CreateRepo />} />
 				<Route path="/uploadFiles" element={<UploadFiles />} />
 				<Route path="/accountInfo" element={<AccountIngo />} />
+				<Route path="/search" element={<SearchPage />} />
 			</Routes>
 		</Router>
 	);

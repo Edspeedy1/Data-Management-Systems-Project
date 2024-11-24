@@ -36,7 +36,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def do_GET(self):
-        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo']:
+        if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo', '/search'] or '/repo/' in self.path:
             self.path = '/index.html'
         if self.path == '/favicon.ico':
             return super().do_GET()
@@ -182,10 +182,11 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     
 
     def searchBar(self,word):
-        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE = ?"
+        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE ?"
         params = (word+'%',)
         results = self.send_SQL_query(query, params)
-        self.send_json_response(200, {'success': True, "searchBar":results})
+        results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
+        self.send_json_response(200, {'success': True, "repos":results})
             
 
     def addCollab(self, username, RepoID, accessLevel, change):   
@@ -259,6 +260,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def send_SQL_query(self, query, params=()):
+        results = None
         try:
             cursor = self.DB_CONN.cursor()
             cursor.execute(query, params)
@@ -266,9 +268,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             print(e)
         finally:
+            cursor.close()
             if not results:
                 self.DB_CONN.commit()
-            cursor.close()
 
 with http.server.HTTPServer(("", PORT), customRequestHandler) as httpd:
     print("serving at port", PORT)
