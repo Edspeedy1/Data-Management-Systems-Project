@@ -66,7 +66,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             if 'multipart/form-data' in content_type:
                 boundary = content_type.split('boundary=')[1]
                 parser = MultipartParser(BytesIO(post_data), boundary=boundary)
-        
+
+                repo_id = None
                 description = None
                 repoName = None
                 files = []
@@ -152,11 +153,28 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.getRepoDescription(data['repoID'])
 
         if self.path == '/api/UploadFile':
+            print("I am here")
             data = json.loads(post_data)
-            self.fileUpload(data['repoID'], data['folderID'], data[files])
-             
-    #---------------------------------------------------------------------------
-    
+            boundary = content_type.split('boundary=')[1]
+            parser = MultipartParser(BytesIO(post_data), boundary=boundary)
+
+            repo_id = None
+            folder_id = None
+            files = []
+            for part in parser.parts():
+                    if part.name == 'repoID':  
+                        repo_id = part.value
+                    elif part.name == "folderID":
+                        folder_id = part.value
+                    elif part.name == 'files':
+                        files.append({
+                            'filename': part.filename,
+                            'content_type': part.content_type,
+                            'content': part.value
+                        })
+                        
+            self.Uploadfile(repo_id, folder_id, files)
+
     #---------------------------------------------------------------------------
 
     def getRepoDescription(self, repoID):
@@ -262,6 +280,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 #-------------------------------------------
 
     def UploadFile(self, repoID, folderID, files):
+        print("AM HERE!")
         try:
         # Validate `repoID` exists
             repo_query = "SELECT RepoID FROM Repository WHERE RepoID = ?"
@@ -350,12 +369,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Error creating folder: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
 
-
-
 #------------------------------------------
-
-
-
             
     def changeUI(self, username, primary_color, secondary_color, tertiary_color, font_type, theme, repo_id):
         try:

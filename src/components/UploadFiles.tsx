@@ -20,7 +20,7 @@ export const UploadFiles: React.FC = () => {
             
                 console.log("Uploading files:", reponame);
         
-                fetch("/api/fileUpload", {
+                fetch("/api/Uploadfile", {
                     method: "POST",
                     body: formData,
                 })

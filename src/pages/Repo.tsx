@@ -67,7 +67,7 @@ const Repo: React.FC = () => {
                                     <div className="w-[100%]">
                                         <p>Files</p>
                                     </div>
-                                    <div className="w-[20%] border-dark border-l-4"> 
+                                    <div className="w-[20%] border-light border-l-4"> 
                                         <SettingsDropDown />
                                         <CollabBox />
                                         <UploadFiles />
