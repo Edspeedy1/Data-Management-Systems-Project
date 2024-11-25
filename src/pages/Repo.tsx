@@ -7,9 +7,12 @@ import { Spacer } from "../components/Spacer";
 import { SettingsDropDown } from "../components/SettingsDropDown";
 import { CollabBox } from "../components/CollabBox";
 import { UploadFiles } from "../components/UploadFiles";
+import { RepoFiles } from "../components/RepoFiles";
 
 const Repo: React.FC = () => {
     const repoName = window.location.pathname.split("/")[2];
+
+    const [sharedState, setSharedState] = useState(false);
 
     const [isLoadingDesc, setIsLoadingDesc] = useState(true);
     const [description, setDescription] = useState("");
@@ -51,9 +54,9 @@ const Repo: React.FC = () => {
 							<ContentBox bgColor="light" hasBorder>
 								<div className="text-center w-[80vw] h-[80vh] flex justify-center">
 									<div className="w-[35%] overflow-hidden border-dark border-r-4">
-                                        <button className="left-4 absolute">
+                                        <a className="left-4 absolute cursor-pointer" href={`../api/download/_all/${repoName}`} download>
                                             <img src="../content/download-svgrepo-com.svg" className="h-8" alt="Search Icon" />
-                                        </button>
+                                        </a>
                                         <h1 className="text-3xl font-bold pl-12 pr-12">{repoName.replace(/%20/g, " ")}</h1>
                                         <Spacer space={20}/>
                                         <h1 className="text-xl font-bold">{isLoadingDesc ? "Loading..." : description}</h1>
@@ -65,12 +68,12 @@ const Repo: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="w-[100%]">
-                                        <p>Files</p>
+                                        <RepoFiles sharedState={sharedState}/>
                                     </div>
-                                    <div className="w-[20%] border-light border-l-4"> 
+                                    <div className="w-[20%] border-dark border-l-4"> 
                                         <SettingsDropDown />
                                         <CollabBox />
-                                        <UploadFiles />
+                                        <UploadFiles setSharedState={setSharedState}/>
                                     </div>
 								</div>
 							</ContentBox>

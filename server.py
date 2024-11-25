@@ -7,6 +7,8 @@ import json
 import os
 from multipart import MultipartParser
 from io import BytesIO
+import mimetypes
+import zipfile
 
 PORT = 8045
 SESS_COOKIE_NAME = "project-forge-session-id"
@@ -36,6 +38,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 
     def do_GET(self):
+        if '/api/download/' in self.path:
+            return self.downloadFile(self.path)
         if self.path in ['/', '/index.html', '/login', '/home', '/repo', '/uploadFiles', '/accountInfo', '/createRepo', '/search'] or '/repo/' in self.path or '/search'in self.path:
             self.path = '/index.html'
         if self.path == '/favicon.ico':
@@ -80,10 +84,14 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                     elif part.name == "repoName":
                         repoName = part.value
                     elif part.name == 'files':
+                        try:
+                            value = part.value
+                        except:
+                            value = part.raw
                         files.append({
                             'filename': part.filename,
                             'content_type': part.content_type,
-                            'content': part.value
+                            'content': value
                         })
                         
                     # Call repoCreate with the collected data
@@ -152,28 +160,33 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             data = json.loads(post_data)
             self.getRepoDescription(data['repoID'])
 
-        if self.path == '/api/UploadFile':
-            print("I am here")
+        if self.path == '/api/getFileNames':
             data = json.loads(post_data)
+            self.getFileNames(data['repoID'])
+
+
+        if self.path == '/api/UploadFile':
+            content_type = self.headers.get('Content-Type')
             boundary = content_type.split('boundary=')[1]
             parser = MultipartParser(BytesIO(post_data), boundary=boundary)
 
             repo_id = None
-            folder_id = None
             files = []
             for part in parser.parts():
                     if part.name == 'repoID':  
                         repo_id = part.value
-                    elif part.name == "folderID":
-                        folder_id = part.value
                     elif part.name == 'files':
+                        try:
+                            value = part.value
+                        except Exception as e:
+                            value = part.raw
                         files.append({
                             'filename': part.filename,
                             'content_type': part.content_type,
-                            'content': part.value
+                            'content': value
                         })
                         
-            self.Uploadfile(repo_id, folder_id, files)
+            self.UploadFile(repo_id, repo_id, files, sendResponse=True)
 
     #---------------------------------------------------------------------------
 
@@ -224,6 +237,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             if not userExists:
                 print(f"Error: User '{collabLeader}' does not exist.")
                 self.send_json_response(205, {"error": "User does not exist"})
+                return
                 
 
             # Check if the RepoID already exists
@@ -247,18 +261,17 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Pass the correct parameters to the query, ensuring the number of parameters matches the placeholders
             self.send_SQL_query(insert_query, (repoID, DateCreated, repoName, collabLeader, None, description))
 
-        # Call folderCreate for the initial folder creation
-            print(f"Calling folderCreate for initial folder creation...")
-            folderID = f"{repoID}_root"
-            print(f"Calling folderCreate for initial folder creation with FolderID={folderID}")
-            #--------
-            self.folderCreate(collabLeader, repoID, folderID)
-            print(f"Calling folderCreate for initial file uploading with  FileID={folderID}")
-
-            #--------
+            # Call folderCreate for the initial folder creation
+            folderID = f"{repoID}"
+            result = self.folderCreate(collabLeader, repoID, folderID, files[0])
+            if result:
+                print(f"Error creating root folder: {result}")
+                self.send_json_response(500, {'error': 'Internal server error'})
+                return
+            
             self.UploadFile(repoID, folderID, files)
 
-            files_metadata = [{'fileID': f"{folderID}_{file['filename']}"} for file in files] if files else []
+            # files_metadata = [{'fileID': f"{folderID}_{file['filename']}"} for file in files] if files else []
 
             print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
             # Send a success response (to let me know that im not going crazy)
@@ -269,7 +282,6 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 'creation_time': DateCreated,
                 'URL': "repo/" + repoID,
              #   'Files': files_metadata  # Include only fileIDs (metadata) This json response is being VERY annoying
-
             })
 
         except Exception as e:
@@ -279,21 +291,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 #-------------------------------------------
 
-    def UploadFile(self, repoID, folderID, files):
-        print("AM HERE!")
+    def UploadFile(self, repoID, folderID, files, sendResponse=False):
         try:
         # Validate `repoID` exists
             repo_query = "SELECT RepoID FROM Repository WHERE RepoID = ?"
             repo_result = self.send_SQL_query(repo_query, (repoID,))
             if not repo_result:
                 self.send_json_response(404, {'error': 'Repository not found'})
-                return
-
-            # Validate `folderID` exists and belongs to the `repoID`
-            folder_query = "SELECT folderID FROM codeStorage WHERE folderID = ? AND repoID = ?"
-            folder_result = self.send_SQL_query(folder_query, (folderID, repoID))
-            if not folder_result:
-                self.send_json_response(404, {'error': 'Folder not found or does not belong to the specified repository'})
                 return
 
             # Prepare to upload files
@@ -325,6 +329,8 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_SQL_query(insert_query, (folderID, repoID, fileID, last_updated))
 
             print(f"Files uploaded successfully to folder '{folderID}' in repo '{repoID}'.")
+            if sendResponse:
+                self.send_json_response(200, {'success': True})
 
         except Exception as e:
             print(f"Error uploading files: {e}")
@@ -334,7 +340,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 #-------------------------------------------------------
                 
               # Assuming this is part of your `do_POST` method that handles requests
-    def folderCreate(self, collabLeader, repoID, folderID):
+    def folderCreate(self, collabLeader, repoID, folderID, fileID):
         dateAdded = time.time()
         print(f"Commencing folder creation... folderID: {folderID}")
 
@@ -344,20 +350,18 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             userExists = self.send_SQL_query(user_query, (collabLeader,))
             if not userExists:
                 print(f"Error: User '{collabLeader}' does not exist.")
-                self.send_json_response(200, {"error": "User does not exist"})
-                return
+                return "User does not exist"
             
         # Check if the folderID already exists
             folder_query = "SELECT COUNT(*) FROM codeStorage WHERE folderID = ?"
             folder_check = self.send_SQL_query(folder_query, (folderID,))
             if folder_check and folder_check[0][0] > 0:
                 print(f"Error: Folder ID '{folderID}' already exists.")
-                self.send_json_response(410, {'error': 'Folder ID already exists'})
-                return
+                return "Folder ID already exists"
 
         # If the folder doesn't already exist, create it
-            insert_query = " INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated, fileSuggestions) VALUES (?, ?, NULL, ?, NULL)"
-            self.send_SQL_query(insert_query, (folderID, repoID, dateAdded))
+            insert_query = "INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated) VALUES (?, ?, ?, ?, )"
+            self.send_SQL_query(insert_query, (folderID, repoID, fileID, dateAdded))
             full_path = os.path.join(UPLOAD_FOLDER, folderID)
             os.makedirs(full_path, exist_ok=True)
             
@@ -490,6 +494,60 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             sessions[str(sessionID)] = ConnectedClient(username, sessionID)
             self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
 
+
+    def getFileNames(self, RepoID):
+        query = "SELECT fileID FROM codeStorage WHERE RepoID = ?"
+        params = (RepoID,)
+        results = self.send_SQL_query(query, params)
+        print(results)
+        results = list(map(lambda x: {'name': x[0]}, results))
+        print(results)
+        self.send_json_response(200, {'success': True, "fileNames":results})
+
+
+    def downloadFile(self, path):
+        # Extract the filename from the URL
+        filename = path.split('/download/')[-1].replace('%20', ' ').replace('/', '\\')
+        print(filename)
+        if '_all\\' in filename:
+            filename = filename.replace('_all\\', '')
+            print(filename)
+            # zip together all files in the folder
+            filepath = os.path.join(os.getcwd(), 'uploads', filename)
+            zip_path = os.path.join(os.getcwd(), 'uploads', filename + '.zip')
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(filepath):
+                    for file in files:
+                        zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), filepath))
+
+            # Serve the zip file with the correct MIME type
+            mimetype, _ = mimetypes.guess_type(zip_path)
+            self.send_response(200)
+            self.send_header('Content-Type', mimetype or 'application/octet-stream')
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}.zip"')
+            self.end_headers()
+
+            # Open the zip file and send it in chunks to avoid memory overload
+            with open(zip_path, 'rb') as file:
+                self.wfile.write(file.read())
+            return
+
+        filepath = os.path.join(os.getcwd(), 'uploads', filename)
+
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            # Serve the file with the correct MIME type
+            mimetype, _ = mimetypes.guess_type(filepath)
+            self.send_response(200)
+            self.send_header('Content-Type', mimetype or 'application/octet-stream')
+            self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
+            self.end_headers()
+
+            # Open the file and send it in chunks to avoid memory overload
+            with open(filepath, 'rb') as file:
+                self.wfile.write(file.read())
+        else:
+            self.send_error(404, "File not found")
+        
     
     def logout(self, sessionID):
         if sessionID in sessions:

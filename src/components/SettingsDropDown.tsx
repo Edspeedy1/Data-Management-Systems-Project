@@ -17,7 +17,7 @@ export const SettingsDropDown: React.FC = () => {
                     <p className="ml-2">Settings</p>
                 </button>
                 <div className={clsx("duration-300 w-full", isOpen ? "opacity-100 cursor-pointer translate-y-0" : "opacity-0 cursor-default translate-x-[1000px]")}>
-                    <ToggleBox api="repoPublic">Is Public</ToggleBox>
+                    <ToggleBox api="repoPublic">Is&nbsp;Public</ToggleBox>
                     {/* <ToggleBox>Public</ToggleBox>
                     <ToggleBox>Public</ToggleBox>
                     <ToggleBox>Public</ToggleBox> */}

@@ -20,7 +20,7 @@ def clear_All():
         clear_table(table[0])
 
 
-clear_All()
+c.execute("UPDATE codeStorage SET folderID = ? WHERE folderID = ?", ('hrgrha', 'hrgrha_root'))
 
 conn.commit()
 conn.close()
