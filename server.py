@@ -88,7 +88,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
                     # Call repoCreate with the collected data
                     # Ensure repo_id and description are not None
                 if repo_id and description: 
-                    self.repoCreate(username, repo_id, description, repoName)
+                    self.repoCreate(username, repo_id, description, repoName, files)
              
 
         if self.path == '/api/login':
@@ -150,8 +150,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path == '/api/getRepoDescription':
             data = json.loads(post_data)
             self.getRepoDescription(data['repoID'])
-             
 
+        if self.path == '/api/UploadFile':
+            data = json.loads(post_data)
+            self.fileUpload(data['repoID'], data['folderID'], data[files])
+             
+    #---------------------------------------------------------------------------
+    
     #---------------------------------------------------------------------------
 
     def getRepoDescription(self, repoID):
@@ -174,9 +179,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Error retrieving ReadMe for RepoID '{repoID}': {e}")
             results = {"error": "Internal server error"}
             self.send_json_response(409, {"repoID": repoID, "description": readme, "ERROR": True})
-        
 
-   
+#-------------------------------------------
+        
     def repoPublic(self, repoID, isPublic, get):
         print(f"repoID: {repoID}, isPublic: {isPublic}, get: {get}")
         if not get:
@@ -188,7 +193,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             results = self.send_SQL_query(query, (repoID,))[0][0]
             self.send_json_response(200, {'success': True, 'isPublic': results})
 
-    def repoCreate(self, collabLeader, repoID, description, repoName):
+#-------------------------------------------
+
+    def repoCreate(self, collabLeader, repoID, description, repoName, files):
         DateCreated = time.time()
         repoName = repoID
         print(f"Collab Leader: {collabLeader}, RepoID: {repoID}")
@@ -226,16 +233,25 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Calling folderCreate for initial folder creation...")
             folderID = f"{repoID}_root"
             print(f"Calling folderCreate for initial folder creation with FolderID={folderID}")
+            #--------
             self.folderCreate(collabLeader, repoID, folderID)
-            print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
+            print(f"Calling folderCreate for initial file uploading with  FileID={folderID}")
 
+            #--------
+            self.UploadFile(repoID, folderID, files)
+
+            files_metadata = [{'fileID': f"{folderID}_{file['filename']}"} for file in files] if files else []
+
+            print(f"Repository created successfully: RepoID={repoID}, CollabLeader={collabLeader}")
             # Send a success response (to let me know that im not going crazy)
             self.send_json_response(201, {
                 'success': True,
                 'repo_id': repoID,
                 'leader': collabLeader,
                 'creation_time': DateCreated,
-                'URL': "repo/" + repoID
+                'URL': "repo/" + repoID,
+             #   'Files': files_metadata  # Include only fileIDs (metadata) This json response is being VERY annoying
+
             })
 
         except Exception as e:
@@ -243,7 +259,60 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             print(f"Error creating repository: {e}")
             self.send_json_response(500, {'error': 'Internal server error'})
 
-#------------------------------------------
+#-------------------------------------------
+
+    def UploadFile(self, repoID, folderID, files):
+        try:
+        # Validate `repoID` exists
+            repo_query = "SELECT RepoID FROM Repository WHERE RepoID = ?"
+            repo_result = self.send_SQL_query(repo_query, (repoID,))
+            if not repo_result:
+                self.send_json_response(404, {'error': 'Repository not found'})
+                return
+
+            # Validate `folderID` exists and belongs to the `repoID`
+            folder_query = "SELECT folderID FROM codeStorage WHERE folderID = ? AND repoID = ?"
+            folder_result = self.send_SQL_query(folder_query, (folderID, repoID))
+            if not folder_result:
+                self.send_json_response(404, {'error': 'Folder not found or does not belong to the specified repository'})
+                return
+
+            # Prepare to upload files
+            for file in files:
+                # Ensure file content is bytes-like
+                if isinstance(file['content'], str):
+                    file_content = file['content'].encode('utf-8')  # Convert to bytes
+                else:
+                    file_content = file['content']
+
+                # Generate the storage path
+                upload_path = os.path.join(UPLOAD_FOLDER, folderID)
+                os.makedirs(upload_path, exist_ok=True)  # Ensure the folder exists
+
+                file_path = os.path.join(upload_path, file['filename'])
+
+                # Save the file content
+                with open(file_path, 'wb') as f:
+                    f.write(file_content)
+
+                # Record only the file name in the database
+                insert_query = """
+                    INSERT INTO codeStorage (folderID, repoID, fileID, lastUpdated, fileSuggestions)
+                    VALUES (?, ?, ?, ?, NULL)
+                """
+                fileID = file['filename']  # Use file name as ID
+                last_updated = time.time()
+
+                self.send_SQL_query(insert_query, (folderID, repoID, fileID, last_updated))
+
+            print(f"Files uploaded successfully to folder '{folderID}' in repo '{repoID}'.")
+
+        except Exception as e:
+            print(f"Error uploading files: {e}")
+      
+
+
+#-------------------------------------------------------
                 
               # Assuming this is part of your `do_POST` method that handles requests
     def folderCreate(self, collabLeader, repoID, folderID):
