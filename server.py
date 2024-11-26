@@ -139,7 +139,7 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         if self.path == '/api/searchBar':
             data = json.loads(post_data)
-            self.searchBar(data['word']) 
+            self.searchBar(data['word'], username) 
         
         if self.path == '/api/getCollab':
             data = json.loads(post_data)
@@ -191,29 +191,25 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
     #---------------------------------------------------------------------------
 
     def getRepoDescription(self, repoID):
-        try:
-            repoQuery = "SELECT ReadMe FROM Repository WHERE RepoID = ?"
-            result = self.send_SQL_query(repoQuery, (repoID,))      
-            # Check if any result is returned
-            if not result or len(result) == 0:
-                print(f"Error: Repository with RepoID '{repoID}' does not exist.")
-                results = {"error": "Repository not found"}
-                self.send_json_response(409, {"repoID": repoID, "description": readme, "ERROR": True})
-            # Extract the ReadMe from the result
-            readme = result[0][0]  # Assuming result is a list of tuples        
-            # Send the ReadMe to results
-            results = {"repoID": repoID, "description": readme}
-            print(f"Results: {results}")
-            self.send_json_response(200, {"repoID": repoID, "description": readme})
-
-        except Exception as e:
-            print(f"Error retrieving ReadMe for RepoID '{repoID}': {e}")
-            results = {"error": "Internal server error"}
+        repoID = repoID.replace('%20', ' ')
+        repoQuery = "SELECT ReadMe FROM Repository WHERE RepoID = ?"
+        result = self.send_SQL_query(repoQuery, (repoID,))      
+        # Check if any result is returned
+        if not result or len(result) == 0:
+            print(f"Error: Repository with RepoID '{repoID}' does not exist.")
+            results = {"error": "Repository not found"}
             self.send_json_response(409, {"repoID": repoID, "description": readme, "ERROR": True})
+        # Extract the ReadMe from the result
+        readme = result[0][0]  # Assuming result is a list of tuples        
+        # Send the ReadMe to results
+        results = {"repoID": repoID, "description": readme}
+        print(f"Results: {results}")
+        self.send_json_response(200, {"repoID": repoID, "description": readme})
 
 #-------------------------------------------
         
     def repoPublic(self, repoID, isPublic, get):
+        repoID = repoID.replace('%20', ' ')
         print(f"repoID: {repoID}, isPublic: {isPublic}, get: {get}")
         if not get:
             query = "UPDATE Repository SET IsPublic = ? WHERE RepoID = ?"
@@ -292,8 +288,9 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
 #-------------------------------------------
 
     def UploadFile(self, repoID, folderID, files, sendResponse=False):
+        folderID = folderID.replace('%20', ' ')
+        repoID = repoID.replace('%20', ' ')
         try:
-        # Validate `repoID` exists
             repo_query = "SELECT RepoID FROM Repository WHERE RepoID = ?"
             repo_result = self.send_SQL_query(repo_query, (repoID,))
             if not repo_result:
@@ -416,22 +413,24 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             params = (usernameHost,)
         results = self.send_SQL_query(query, params)
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
-        self.send_json_response(200, {'success': True, "repos":results})
+        self.send_json_response(200, {'success': True, "repos": results})
     
 
-    def searchBar(self,word):
-        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE ? and isPublic = True"
-        params = (word+'%',)
+    def searchBar(self, word, username):
+        word = word.replace('%20', ' ')
+        query = "SELECT RepoName FROM Repository WHERE RepoName LIKE ? and (isPublic = True or CollabLeader = ?)"
+        params = ("%" + word + "%", username)
         results = self.send_SQL_query(query, params)
         results = list(map(lambda x: {'name': x[0], 'description': '', 'url': f'/repo/{x[0]}'}, results))
-        self.send_json_response(200, {'success': True, "repos":results})
+        print(results)
+        self.send_json_response(200, {'success': True, "repos": results})
             
     def getCollab(self,RepoID):
         query = "SELECT UserName FROM Collaborator WHERE RepoID LIKE ?"
         params=(RepoID,)
         results=self.send_SQL_query(query, params)
         usernames = [row[0] for row in results]
-        self.send_json_response(200, {'success': True,"collabs":usernames})
+        self.send_json_response(200, {'success': True, "collabs": usernames})
         
     def addCollab(self, username, RepoID, accessLevel, change):   
         # accessLevel 0 is viewer and 1 is editor
@@ -495,13 +494,13 @@ class customRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_json_response(200, {'success': True}, {'Set-Cookie': f"{SESS_COOKIE_NAME}={sessionID}; HttpOnly"})
 
 
-    def getFileNames(self, RepoID):
+    def getFileNames(self, repoID):
+        repoID = repoID.replace('%20', ' ')
         query = "SELECT fileID FROM codeStorage WHERE RepoID = ?"
-        params = (RepoID,)
+        params = (repoID,)
         results = self.send_SQL_query(query, params)
-        print(results)
+        print(repoID, results)
         results = list(map(lambda x: {'name': x[0]}, results))
-        print(results)
         self.send_json_response(200, {'success': True, "fileNames":results})
 
 

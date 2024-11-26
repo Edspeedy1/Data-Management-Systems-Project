@@ -1,4 +1,6 @@
 import sqlite3
+import os
+import shutil
 
 conn = sqlite3.connect('database.db')
 c = conn.cursor()
@@ -19,6 +21,10 @@ def clear_All():
         print("Clearing table " + table[0])
         clear_table(table[0])
 
+    # empty the "uploads" folder
+    if os.path.exists("uploads"):
+        shutil.rmtree("uploads")
+        os.mkdir("uploads")
 
 clear_All()
 
