@@ -34,13 +34,13 @@ export const RepoFiles: React.FC<React.PropsWithChildren<{
     }, [sharedState]);
 
     return (
-        <div className="flex flex-wrap gap-2 w-full h-full justify-center">
+        <div className="flex flex-wrap gap-2 w-full h-full justify-center content-start">
             {isLoading ? (
                 <p className="animate-pulse">Loading...</p>
             ) : (
                 files.map((file, index) => (
-                    <div key={index} className="bg-dark w-32 h-32 flex items-center justify-center rounded">
-                        <a href={`../api/download/${repoName}/${file.name}`} download>
+                    <div key={index} className="bg-dark w-32 h-32 flex items-center justify-center rounded text-white">
+                        <a href={`../api/download/${repoName}/${file.name}`} download className="break-all">
                             {file.name}
                         </a>
                     </div>
